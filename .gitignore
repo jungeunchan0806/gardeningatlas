@@ -1,0 +1,17 @@
+.env
+node_modules/
+data/
+*.log
+*.err.log
+cloudflared.exe
+qa-*.png
+localhost-run*.log
+localhost-run*.err.log
+tunnel*.log
+tunnel*.err.log
+server-current.log
+server-current.err.log
+server-local.log
+server-local.err.log
+cloudflared-current.log
+cloudflared-current.err.log

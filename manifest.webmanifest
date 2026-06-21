@@ -1,0 +1,22 @@
+﻿{
+  "id": "/mobile",
+  "name": "gardeningatlas - 주택 마당 식물 지도",
+  "short_name": "gardeningatlas",
+  "description": "주택 마당의 식물 위치, 관리법, 물주기, 계절 변화를 모바일에서 확인하는 식물 지도 앱입니다.",
+  "start_url": "/mobile",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#fffdf7",
+  "theme_color": "#13231b",
+  "categories": ["home", "lifestyle", "productivity"],
+  "lang": "ko-KR",
+  "icons": [
+    {
+      "src": "yardatlas-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

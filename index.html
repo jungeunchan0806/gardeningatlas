@@ -1,0 +1,2812 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#13231b">
+  <meta name="application-name" content="gardeningatlas">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="gardeningatlas">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="manifest.webmanifest">
+  <title>gardeningatlas - 주택 마당 식물 지도</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17201b;
+      --muted: #66736b;
+      --line: #d8dfd8;
+      --soft: #f3f7f0;
+      --paper: #fbfcf7;
+      --green: #2f7d4f;
+      --green-dark: #155b38;
+      --mint: #dff0e4;
+      --clay: #b75d42;
+      --gold: #c9962b;
+      --blue: #477aa3;
+      --shadow: 0 16px 38px rgba(38, 55, 43, 0.14);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: #e9eee7;
+      color: var(--ink);
+      font-family: Inter, "Pretendard", "Malgun Gothic", Arial, sans-serif;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 258px 1fr;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 18px 14px;
+      background: #13231b;
+      color: #eef7ee;
+      border-right: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 8px 18px;
+    }
+
+    .mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #72b97a, #d7b352);
+      color: #0e2618;
+      font-weight: 900;
+    }
+
+    .brand b {
+      display: block;
+      font-size: 18px;
+      line-height: 1.1;
+    }
+
+    .brand span {
+      color: #b8cabd;
+      font-size: 12px;
+    }
+
+    .nav {
+      display: grid;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .nav button {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 42px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: transparent;
+      color: #dce9df;
+      text-align: left;
+    }
+
+    .nav button.active,
+    .nav button:hover {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+    }
+
+    .nav svg,
+    .icon svg {
+      width: 18px;
+      height: 18px;
+      stroke-width: 2;
+    }
+
+    .account-panel {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 14px;
+      padding: 12px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .account-panel small {
+      color: #b8cabd;
+    }
+
+    .account-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .plan-pill {
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #d9f1dd;
+      color: #12351f;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .device-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+      padding: 5px 8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.1);
+      color: #dce9df;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .main {
+      min-width: 0;
+      padding: 20px 22px 28px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .title h1 {
+      margin: 0;
+      font-size: clamp(24px, 3vw, 36px);
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .title p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      max-width: 760px;
+      line-height: 1.45;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 10px 13px;
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      box-shadow: 0 1px 0 rgba(0,0,0,0.02);
+      font-weight: 800;
+    }
+
+    .btn.primary {
+      background: var(--green);
+      color: #fff;
+      border-color: var(--green);
+    }
+
+    .btn.warn {
+      background: #fff5df;
+      color: #6f4500;
+      border-color: #ead29b;
+    }
+
+    .btn.ghost {
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .btn:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+    }
+
+    .grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .dashboard {
+      grid-template-columns: minmax(0, 1.5fr) minmax(320px, .9fr);
+      align-items: start;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.86);
+      border-radius: 8px;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.03);
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 15px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .panel-head h2,
+    .panel-head h3 {
+      margin: 0;
+      font-size: 16px;
+      letter-spacing: 0;
+    }
+
+    .panel-body {
+      padding: 14px 15px;
+    }
+
+    .yard-stage {
+      position: relative;
+      min-height: 560px;
+      border-radius: 8px;
+      overflow: hidden;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,.38) 1px, transparent 1px) 0 0/24px 24px,
+        linear-gradient(rgba(255,255,255,.38) 1px, transparent 1px) 0 0/24px 24px,
+        #dfe9d9;
+      border: 1px solid #c8d4c5;
+    }
+
+    .blueprint {
+      position: absolute;
+      inset: 28px;
+      border: 2px solid #9aae98;
+      background: rgba(255,255,255,0.3);
+    }
+
+    .house {
+      position: absolute;
+      left: 39%;
+      top: 30%;
+      width: 26%;
+      height: 27%;
+      background: #f7f2e7;
+      border: 3px solid #66716a;
+      box-shadow: inset 0 0 0 12px rgba(90,96,91,0.08);
+    }
+
+    .house::before,
+    .house::after {
+      content: "";
+      position: absolute;
+      background: #c6bba7;
+    }
+
+    .house::before {
+      left: 18%;
+      right: 18%;
+      top: 45%;
+      height: 2px;
+    }
+
+    .house::after {
+      left: 48%;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+    }
+
+    .patio {
+      position: absolute;
+      left: 37%;
+      top: 58%;
+      width: 30%;
+      height: 12%;
+      border: 2px dashed #9e8f75;
+      background: rgba(238, 222, 187, 0.65);
+    }
+
+    .path {
+      position: absolute;
+      left: 49.5%;
+      top: 70%;
+      width: 5%;
+      height: 23%;
+      background: repeating-linear-gradient(180deg, #b7a487 0 14px, #c8b99e 14px 26px);
+      border: 1px solid #9e8f75;
+    }
+
+    .bed {
+      position: absolute;
+      border-radius: 24px;
+      background: rgba(94, 125, 77, .18);
+      border: 1px solid rgba(50,88,52,.28);
+    }
+
+    .bed.one {
+      left: 7%;
+      top: 9%;
+      width: 25%;
+      height: 30%;
+    }
+
+    .bed.two {
+      right: 7%;
+      top: 11%;
+      width: 22%;
+      height: 34%;
+    }
+
+    .bed.three {
+      left: 9%;
+      bottom: 12%;
+      width: 28%;
+      height: 25%;
+    }
+
+    .plant-dot {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      display: grid;
+      place-items: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      background: #2f7d4f;
+      color: #fff;
+      border: 3px solid #fff;
+      box-shadow: 0 8px 20px rgba(20, 51, 32, .18);
+    }
+
+    .editing-layout .plant-dot,
+    .editing-layout .plant-label {
+      cursor: grab;
+      outline: 2px dashed rgba(47, 125, 79, .42);
+      outline-offset: 3px;
+    }
+
+    .editing-layout .plant-dot:active,
+    .editing-layout .plant-label:active {
+      cursor: grabbing;
+    }
+
+    .plant-dot.tree {
+      width: 42px;
+      height: 42px;
+      background: #1f6a3c;
+    }
+
+    .plant-label {
+      position: absolute;
+      transform: translate(-50%, calc(-100% - 18px));
+      min-width: 98px;
+      max-width: 150px;
+      padding: 7px 9px;
+      border-radius: 8px;
+      background: rgba(255,255,255,.95);
+      border: 1px solid var(--line);
+      box-shadow: 0 8px 18px rgba(20, 51, 32, .12);
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 800;
+      text-align: center;
+      white-space: normal;
+    }
+
+    .plant-label small {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 11px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .stat {
+      padding: 14px;
+      border-radius: 8px;
+      background: #fff;
+      border: 1px solid var(--line);
+    }
+
+    .stat b {
+      display: block;
+      font-size: 23px;
+      line-height: 1;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .detail-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .detail {
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .detail h3 {
+      margin: 0 0 6px;
+      font-size: 15px;
+    }
+
+    .detail p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .scan-grid {
+      display: grid;
+      grid-template-columns: minmax(320px, .8fr) minmax(0, 1.2fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    .dropzone {
+      display: grid;
+      place-items: center;
+      min-height: 260px;
+      padding: 22px;
+      border-radius: 8px;
+      border: 2px dashed #abc0ad;
+      background: #f8fbf5;
+      text-align: center;
+    }
+
+    .dropzone input {
+      display: none;
+    }
+
+    .dropzone img {
+      max-width: 100%;
+      max-height: 230px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      object-fit: contain;
+      background: #fff;
+    }
+
+    .steps {
+      display: grid;
+      gap: 10px;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 32px 1fr;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 8px;
+      background: #fff;
+      border: 1px solid var(--line);
+    }
+
+    .num {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: var(--mint);
+      color: var(--green-dark);
+      font-weight: 900;
+    }
+
+    .step h3 {
+      margin: 0 0 5px;
+      font-size: 14px;
+    }
+
+    .step p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.42;
+    }
+
+    .catalog-tools {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) 150px 150px;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .field {
+      width: 100%;
+      min-height: 40px;
+      padding: 9px 11px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .plant-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: 10px;
+      max-height: 642px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    .plant-card {
+      padding: 12px;
+      border-radius: 8px;
+      background: #fff;
+      border: 1px solid var(--line);
+      text-align: left;
+    }
+
+    .plant-thumb {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      margin-bottom: 10px;
+      background: #eef3ed;
+    }
+
+    .plant-card h3 {
+      margin: 0 0 4px;
+      font-size: 15px;
+    }
+
+    .plant-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.42;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 9px;
+    }
+
+    .tag {
+      padding: 4px 7px;
+      border-radius: 999px;
+      background: #eef4ea;
+      color: #31533a;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .pricing {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .price-card {
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      gap: 12px;
+      padding: 18px;
+      border-radius: 8px;
+      background: #fff;
+      border: 1px solid var(--line);
+      box-shadow: 0 1px 0 rgba(0,0,0,0.02);
+    }
+
+    .price-card.featured {
+      border: 2px solid var(--green);
+      box-shadow: var(--shadow);
+    }
+
+    .price-card h3 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .price {
+      font-size: 28px;
+      font-weight: 900;
+    }
+
+    .price small {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .features {
+      display: grid;
+      gap: 9px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      color: #38453d;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 720px;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      padding: 10px 11px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f4f7f1;
+      color: #405045;
+      font-size: 12px;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .auth-wrap {
+      display: grid;
+      grid-template-columns: minmax(320px, 430px) minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .auth-form {
+      display: grid;
+      gap: 10px;
+    }
+
+    .form-divider {
+      height: 1px;
+      margin: 12px 0;
+      background: var(--line);
+    }
+
+    .reset-form {
+      display: grid;
+      gap: 9px;
+    }
+
+    .chat-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 340px;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .chat-list {
+      display: grid;
+      gap: 12px;
+      max-height: 680px;
+      overflow: auto;
+      padding-right: 3px;
+    }
+
+    .thread {
+      padding: 12px;
+      border-radius: 8px;
+      background: #fff;
+      border: 1px solid var(--line);
+    }
+
+    .bubble {
+      max-width: 82%;
+      margin: 8px 0;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: #eef4ea;
+      line-height: 1.45;
+      font-size: 13px;
+    }
+
+    .bubble.admin {
+      margin-left: auto;
+      background: #dfecf6;
+    }
+
+    .bubble small {
+      display: block;
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .tabs {
+      display: inline-grid;
+      grid-template-columns: 1fr 1fr;
+      padding: 4px;
+      border-radius: 8px;
+      background: #eef3ed;
+      border: 1px solid var(--line);
+    }
+
+    .tabs button {
+      min-height: 36px;
+      border-radius: 6px;
+      background: transparent;
+      font-weight: 800;
+      color: var(--muted);
+    }
+
+    .tabs button.active {
+      background: #fff;
+      color: var(--ink);
+      box-shadow: 0 1px 5px rgba(0,0,0,.08);
+    }
+
+    .notice {
+      padding: 11px 12px;
+      border-radius: 8px;
+      background: #eff7f0;
+      border: 1px solid #c9dfcd;
+      color: #255431;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .notice.warning {
+      background: #fff7e4;
+      border-color: #e7cf92;
+      color: #6b4a08;
+    }
+
+    .locked {
+      padding: 12px;
+      border-radius: 8px;
+      background: #fff7e4;
+      border: 1px solid #e7cf92;
+      color: #6b4a08;
+      font-size: 13px;
+      line-height: 1.45;
+      margin-bottom: 12px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .is-mobile .desktop-only {
+      display: none !important;
+    }
+
+    .is-desktop .mobile-only {
+      display: none !important;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background: rgba(7, 20, 13, .46);
+      z-index: 50;
+    }
+
+    .modal {
+      width: min(680px, 100%);
+      max-height: 88vh;
+      overflow: auto;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(0,0,0,.12);
+    }
+
+    .modal .panel-head {
+      position: sticky;
+      top: 0;
+      background: #fff;
+      z-index: 1;
+    }
+
+    .season-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .photo-grid figure {
+      margin: 0;
+    }
+
+    .photo-grid img {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #eef3ed;
+    }
+
+    .photo-grid figcaption {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .admin-photo-layout {
+      display: grid;
+      grid-template-columns: minmax(260px, 360px) 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .admin-plant-results {
+      display: grid;
+      gap: 6px;
+      max-height: 360px;
+      overflow: auto;
+      margin-top: 10px;
+    }
+
+    .admin-plant-results button {
+      display: grid;
+      gap: 3px;
+      padding: 9px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #fff;
+      text-align: left;
+    }
+
+    .admin-plant-results button.active {
+      border-color: var(--green);
+      background: #eef7f0;
+    }
+
+    .admin-upload-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .admin-upload-card {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .admin-upload-card img {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #eef3ed;
+    }
+
+    .admin-upload-card input {
+      width: 100%;
+      font-size: 12px;
+    }
+
+    .guide-layout {
+      display: grid;
+      grid-template-columns: minmax(320px, 1.25fr) minmax(260px, .75fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    .guide-video {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      display: block;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #17201b;
+    }
+
+    .guide-checklist {
+      display: grid;
+      gap: 10px;
+    }
+
+    .guide-checklist .detail {
+      background: #fff;
+    }
+
+    .link-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .link-row a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--green-dark);
+      font-weight: 800;
+      font-size: 12px;
+      text-decoration: none;
+    }
+
+    .season {
+      padding: 10px;
+      border-radius: 8px;
+      background: #f7f9f4;
+      border: 1px solid var(--line);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .season b {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--green-dark);
+    }
+
+    @media (max-width: 980px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+        height: auto;
+      }
+
+      .account-panel {
+        position: static;
+        margin-top: 14px;
+      }
+
+      .dashboard,
+      .scan-grid,
+      .auth-wrap,
+      .pricing {
+        grid-template-columns: 1fr;
+      }
+
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .actions {
+        justify-content: flex-start;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .sidebar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        padding: 10px;
+      }
+
+      .brand {
+        padding: 4px 4px 8px;
+      }
+
+      .nav {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .nav button {
+        justify-content: center;
+        gap: 4px;
+        min-height: 44px;
+        padding: 8px 4px;
+        font-size: 11px;
+        text-align: center;
+      }
+
+      .nav button .icon {
+        display: none;
+      }
+
+      .account-panel {
+        display: none;
+      }
+
+      .main {
+        padding: 14px;
+      }
+
+      .catalog-tools {
+        grid-template-columns: 1fr;
+      }
+
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .yard-stage {
+        min-height: 480px;
+      }
+
+      .plant-label {
+        min-width: 82px;
+        font-size: 11px;
+      }
+
+      .season-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .chat-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .admin-photo-layout,
+      .admin-upload-grid,
+      .guide-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .is-mobile .sidebar {
+        border-right: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="mark">Y</div>
+        <div>
+          <b>gardeningatlas</b>
+          <span>마당 식물 지도</span>
+        </div>
+      </div>
+
+      <nav class="nav" aria-label="주요 메뉴">
+        <button class="active" data-view="dashboard" title="대시보드"><span class="icon" data-icon="layout-dashboard"></span>대시보드</button>
+        <button data-view="scan" title="도면 스캔"><span class="icon" data-icon="scan-line"></span>도면 스캔</button>
+        <button data-view="catalog" title="식물 도감"><span class="icon" data-icon="sprout"></span>식물 도감</button>
+        <button data-view="chat" title="채팅"><span class="icon" data-icon="messages-square"></span>채팅</button>
+        <button data-view="pricing" title="요금제"><span class="icon" data-icon="badge-dollar-sign"></span>요금제</button>
+        <button data-view="admin" title="관리자" id="adminNav" class="hidden"><span class="icon" data-icon="server-cog"></span>관리자</button>
+        <button data-view="guide" title="사용법" id="guideNav"><span class="icon" data-icon="book-open-check"></span>사용법</button>
+        <button data-view="account" title="로그인"><span class="icon" data-icon="user-round"></span>계정</button>
+      </nav>
+
+      <div class="account-panel">
+        <small id="accountLabel">로그인하면 마당 지도를 저장할 수 있어요.</small>
+        <div class="device-pill" id="deviceLabel">PC 화면</div>
+        <div class="account-row">
+          <span class="plan-pill" id="planLabel">FREE</span>
+          <button class="btn ghost" id="logoutBtn">로그아웃</button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <section id="view-dashboard" class="view">
+        <div class="topbar">
+          <div class="title">
+            <h1>우리 집 마당을 식물 지도로 관리</h1>
+            <p>위성 사진, 드론 사진, 손그림 도면, 설계도면을 올리면 마당 위에 식물 이름표를 붙이고 물주기, 관리법, 계절 변화를 확인하는 서비스 컨셉입니다.</p>
+          </div>
+          <div class="actions">
+            <button class="btn" data-view-shortcut="scan"><span class="icon" data-icon="upload"></span>도면 올리기</button>
+            <button class="btn primary" id="addSampleBtn"><span class="icon" data-icon="search"></span>식물 검색 추가</button>
+          </div>
+        </div>
+
+        <div class="grid dashboard">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>마당 지도</h2>
+              <div class="actions">
+                <button class="btn" id="editLayoutBtn"><span class="icon" data-icon="move"></span>배치 수정</button>
+                <button class="btn" id="autoArrangeBtn"><span class="icon" data-icon="wand-sparkles"></span>자동 배치</button>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="yard-stage" id="yardStage" aria-label="주택 마당 도면">
+                <div class="blueprint"></div>
+                <div class="bed one"></div>
+                <div class="bed two"></div>
+                <div class="bed three"></div>
+                <div class="house" title="주택"></div>
+                <div class="patio" title="데크"></div>
+                <div class="path" title="진입로"></div>
+              </div>
+            </div>
+          </section>
+
+          <aside class="grid">
+            <div class="stats">
+              <div class="stat"><b id="mappedCount">0</b><span>지도 위 식물</span></div>
+              <div class="stat"><b id="catalogCount">0</b><span>도감 데이터</span></div>
+              <div class="stat"><b id="waterDue">0</b><span>이번 주 물주기</span></div>
+            </div>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h3>오늘 할 일</h3>
+                <span class="tag">자동 생성</span>
+              </div>
+              <div class="panel-body detail-grid" id="todayTasks"></div>
+            </section>
+          </aside>
+        </div>
+      </section>
+
+      <section id="view-scan" class="view hidden">
+        <div class="topbar">
+          <div class="title">
+            <h1>집 사진과 설계도면 스캔 아이디어</h1>
+            <p>집 사진, 위성 캡처, 드론 사진, 손그림, 건축 설계도면을 모두 같은 마당 지도 위에 맞추는 흐름입니다.</p>
+          </div>
+        </div>
+
+        <div class="scan-grid">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>사진 또는 도면 업로드</h2>
+              <span class="tag" id="scanLimitTag">FREE 월 3회</span>
+            </div>
+            <div class="panel-body">
+              <label class="dropzone" for="fileInput">
+                <input id="fileInput" type="file" accept="image/*">
+                <div id="dropCopy">
+                  <p><b>마당 사진이나 설계도면을 선택</b></p>
+                  <p>위에서 본 사진, 네이버/카카오 지도 캡처, 종이 도면 사진, 손그림 스케치 모두 가능하게 설계합니다.</p>
+                  <button class="btn primary" type="button">파일 선택</button>
+                </div>
+                <img id="previewImage" class="hidden" alt="업로드 미리보기">
+              </label>
+              <div style="display:grid; gap:8px; margin-top:12px;">
+                <select class="field" id="scanType">
+                  <option value="aerial">위에서 본 집 사진</option>
+                  <option value="blueprint">건축 설계도면</option>
+                  <option value="sketch">손그림 마당 스케치</option>
+                  <option value="satellite">지도 앱 위성 캡처</option>
+                </select>
+                <button class="btn primary" id="runScanBtn"><span class="icon" data-icon="scan-search"></span>마당 영역 분석하기</button>
+                <p class="notice" id="scanResult">업로드하면 마당 경계, 집 위치, 화단 후보, 나무 후보를 찾는 흐름을 시뮬레이션합니다.</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2>스캔 구현 방식</h2>
+              <span class="tag">개발 로드맵</span>
+            </div>
+            <div class="panel-body steps">
+              <div class="step"><div class="num">1</div><div><h3>이미지 정리</h3><p>사진을 올리면 회전, 밝기, 원근 왜곡을 보정합니다. 도면은 흰 배경과 선을 분리합니다.</p></div></div>
+              <div class="step"><div class="num">2</div><div><h3>집과 마당 영역 찾기</h3><p>지붕, 담장, 포장길, 잔디 영역을 구분해 대략적인 마당 경계를 만듭니다.</p></div></div>
+              <div class="step"><div class="num">3</div><div><h3>스케일 맞추기</h3><p>현관문 폭, 차량 주차칸, 설계도 축척을 기준으로 실제 거리와 면적을 계산합니다.</p></div></div>
+              <div class="step"><div class="num">4</div><div><h3>식물 라벨 배치</h3><p>사용자가 직접 찍은 식물 사진이나 목록을 눌러 마당 위치에 이름표를 붙입니다.</p></div></div>
+              <div class="step"><div class="num">5</div><div><h3>관리 알림 생성</h3><p>지역 날씨, 계절, 식물 특성에 맞춰 물주기와 가지치기 일정을 자동으로 만듭니다.</p></div></div>
+            </div>
+          </section>
+        </div>
+
+        <div class="grid" style="margin-top:14px;">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>유저 관리</h2>
+              <button class="btn" id="refreshAdminUsers"><span class="icon" data-icon="refresh-cw"></span>새로고침</button>
+            </div>
+            <div class="panel-body">
+              <div class="locked">기존 비밀번호는 보안상 복호화해서 보여주지 않습니다. 대신 관리자가 임시 비밀번호로 초기화해 사용자에게 전달할 수 있습니다.</div>
+              <div class="table-wrap" id="adminUsersTable"></div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="view-catalog" class="view hidden">
+        <div class="topbar">
+          <div class="title">
+            <h1>1000가지 이상 식물 도감</h1>
+            <p>이 프로토타입은 서로 다른 1,000개 식물 관리 프로필을 검색, 필터, 상세 보기까지 제공합니다.</p>
+          </div>
+          <div class="actions">
+            <button class="btn primary" id="randomPlantBtn"><span class="icon" data-icon="shuffle"></span>랜덤 추천</button>
+          </div>
+        </div>
+
+        <section class="panel">
+          <div class="panel-body">
+            <div id="catalogLock" class="locked hidden">무료 요금제는 도감 검색 결과를 80개까지만 볼 수 있습니다. 플러스 이상에서는 무제한으로 볼 수 있습니다.</div>
+            <div class="catalog-tools">
+              <input class="field" id="plantSearch" placeholder="식물 이름, 특징, 물주기로 검색">
+              <select class="field" id="plantTypeFilter">
+                <option value="all">모든 종류</option>
+                <option value="tree">나무</option>
+                <option value="shrub">관목</option>
+                <option value="flower">꽃</option>
+                <option value="grass">잔디/그라스</option>
+                <option value="herb">허브</option>
+                <option value="succulent">다육</option>
+                <option value="vegetable">채소</option>
+                <option value="crop">작물</option>
+                <option value="fruit">과채</option>
+                <option value="vine">덩굴</option>
+                <option value="fern">양치</option>
+                <option value="foliage">관엽</option>
+                <option value="aquatic">수생</option>
+              </select>
+              <select class="field" id="sunFilter">
+                <option value="all">모든 햇빛</option>
+                <option value="양지">양지</option>
+                <option value="반양지">반양지</option>
+                <option value="음지">음지</option>
+              </select>
+            </div>
+            <div class="plant-list" id="plantList"></div>
+          </div>
+        </section>
+      </section>
+
+      <section id="view-pricing" class="view hidden">
+        <div class="topbar">
+          <div class="title">
+            <h1>수익화를 위한 요금제</h1>
+            <p>무료로 시작하게 만들고, 더 많은 스캔과 고급 관리 기능은 유료 구독으로 전환하는 구조입니다.</p>
+          </div>
+        </div>
+
+        <div class="pricing" id="pricingCards"></div>
+      </section>
+
+      <section id="view-chat" class="view hidden">
+        <div class="topbar">
+          <div class="title">
+            <h1>채팅</h1>
+            <p>일반 사용자는 관리자에게 문의를 보내고, 관리자는 사용자에게 답장할 수 있습니다.</p>
+          </div>
+          <div class="actions">
+            <button class="btn" id="refreshChat"><span class="icon" data-icon="refresh-cw"></span>새로고침</button>
+          </div>
+        </div>
+
+        <div class="chat-layout">
+          <section class="panel">
+            <div class="panel-head">
+              <h2 id="chatListTitle">대화 목록</h2>
+              <span class="tag" id="chatRoleTag">USER</span>
+            </div>
+            <div class="panel-body">
+              <div class="chat-list" id="chatList"></div>
+            </div>
+          </section>
+
+          <section class="panel" id="chatComposer">
+            <div class="panel-head">
+              <h2>새 메시지</h2>
+            </div>
+            <div class="panel-body reset-form">
+              <textarea class="field" id="chatMessageInput" rows="7" placeholder="관리자에게 보낼 내용을 입력하세요."></textarea>
+              <button class="btn primary" id="sendChatMessage" type="button">보내기</button>
+              <p class="notice" id="chatResult">로그인 후 채팅을 사용할 수 있습니다.</p>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="view-admin" class="view hidden">
+        <div class="topbar">
+          <div class="title">
+            <h1>관리자 서버 관리</h1>
+            <p>관리자 계정에서만 보이는 운영 화면입니다. 지금은 실제 서버 대신 로컬 상태를 관리하는 프로토타입입니다.</p>
+          </div>
+          <div class="actions">
+            <button class="btn" id="exportBtn"><span class="icon" data-icon="download"></span>데이터 내보내기</button>
+            <button class="btn warn" id="resetScanBtn"><span class="icon" data-icon="rotate-ccw"></span>스캔 사용량 초기화</button>
+          </div>
+        </div>
+
+        <div class="grid dashboard">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>서비스 상태</h2>
+              <span class="tag">ADMIN</span>
+            </div>
+            <div class="panel-body">
+              <div class="stats">
+                <div class="stat"><b id="adminUsers">0</b><span>등록 계정</span></div>
+                <div class="stat"><b id="adminPlants">0</b><span>식물 데이터</span></div>
+                <div class="stat"><b id="adminScans">0</b><span>이번 달 스캔</span></div>
+              </div>
+              <div class="detail-grid" id="adminStatus"></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2>운영 기능 설계</h2>
+            </div>
+            <div class="panel-body steps">
+              <div class="step"><div class="num">1</div><div><h3>회원 관리</h3><p>가입자, 요금제, 사용량, 정지 상태를 확인하고 고객 문의에 대응합니다.</p></div></div>
+              <div class="step"><div class="num">2</div><div><h3>식물 데이터 관리</h3><p>식물명, 관리법, 계절 변화, 이미지, 지역별 주의사항을 수정합니다.</p></div></div>
+              <div class="step"><div class="num">3</div><div><h3>스캔 서버 관리</h3><p>이미지 분석 작업 대기열, 실패 로그, 월간 처리량, AI 비용을 확인합니다.</p></div></div>
+              <div class="step"><div class="num">4</div><div><h3>구독과 결제</h3><p>무료, 플러스, 맥스 권한을 관리하고 결제 실패, 환불, 쿠폰을 처리합니다.</p></div></div>
+            </div>
+          </section>
+        </div>
+
+        <section class="panel" style="margin-top:14px;">
+          <div class="panel-head">
+            <h2>식물 사진 직접 관리</h2>
+            <span class="tag">MANUAL PHOTO</span>
+          </div>
+          <div class="panel-body admin-photo-layout">
+            <div>
+              <input class="field" id="adminPlantSearch" placeholder="식물 이름 또는 학명 검색">
+              <div class="admin-plant-results" id="adminPlantResults"></div>
+            </div>
+            <div id="adminPhotoEditor" class="detail">
+              <h3>식물을 선택하세요</h3>
+              <p>관리자가 올린 사진은 자동 검색보다 우선 적용됩니다.</p>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section id="view-guide" class="view hidden">
+        <div class="topbar">
+          <div class="title">
+            <h1>사용법</h1>
+            <p>사진과 도면을 준비해서 앱에 올리는 순서를 영상과 체크리스트로 확인합니다.</p>
+          </div>
+          <div class="actions">
+            <button class="btn" data-view-shortcut="admin"><span class="icon" data-icon="server-cog"></span>관리자 열기</button>
+            <button class="btn" data-view-shortcut="scan"><span class="icon" data-icon="scan-line"></span>도면 올리기</button>
+          </div>
+        </div>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>사진·도면 업로드 영상</h2>
+            <span class="tag">GUIDE</span>
+          </div>
+          <div class="panel-body guide-layout">
+            <video class="guide-video" controls preload="metadata" poster="yardatlas-icon.svg">
+              <source src="assets/admin-upload-guide.webm?v=23" type="video/webm">
+            </video>
+            <div class="guide-checklist">
+              <div class="detail"><h3>사진 준비</h3><p>식물은 전체, 잎, 꽃, 씨·열매 사진을 따로 준비하면 도감 상세 화면이 안정적으로 보입니다.</p></div>
+              <div class="detail"><h3>사진 업로드</h3><p>관리자는 관리자 탭에서 식물을 검색한 뒤 각 사진 칸의 파일 선택으로 업로드합니다. 새 사진은 자동 사진보다 우선 표시됩니다.</p></div>
+              <div class="detail"><h3>도면 업로드</h3><p>도면 스캔 탭에서 JPG 또는 PNG 도면을 선택하고 스캔을 실행한 뒤 마당 지도에서 위치를 확인합니다.</p></div>
+              <p class="notice">잘못 올린 사진은 같은 칸에 다시 업로드하면 교체됩니다.</p>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section id="view-account" class="view hidden">
+        <div class="topbar">
+          <div class="title">
+            <h1>회원가입과 로그인</h1>
+            <p>지금은 브라우저 저장소에만 저장되는 프로토타입입니다. 실제 서비스에서는 서버, 암호화, 이메일 인증, 결제가 필요합니다.</p>
+          </div>
+        </div>
+
+        <div class="auth-wrap">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>계정</h2>
+              <div class="tabs">
+                <button class="active" id="loginTab">로그인</button>
+                <button id="signupTab">회원가입</button>
+              </div>
+            </div>
+            <div class="panel-body">
+              <form class="auth-form" id="authForm">
+                <input class="field" id="emailInput" autocomplete="email" placeholder="이메일 또는 아이디" required>
+                <input class="field hidden" id="usernameInput" autocomplete="username" placeholder="아이디">
+                <input class="field" id="passwordInput" type="password" autocomplete="current-password" placeholder="비밀번호" required minlength="4">
+                <input class="field hidden" id="nameInput" placeholder="이름 또는 닉네임">
+                <button class="btn primary" type="submit" id="authSubmit">로그인</button>
+                <p class="notice" id="authMessage">테스트용으로 아무 이메일과 비밀번호를 넣고 회원가입할 수 있습니다.</p>
+              </form>
+              <div class="form-divider"></div>
+              <div class="reset-form">
+                <h3 style="margin:0;font-size:15px;">기존 계정에 이메일 추가</h3>
+                <input class="field" id="attachLoginInput" placeholder="기존 아이디">
+                <input class="field" id="attachEmailInput" type="email" placeholder="추가할 이메일">
+                <input class="field" id="attachPasswordInput" type="password" placeholder="현재 비밀번호">
+                <button class="btn" id="attachEmailBtn" type="button">이메일 추가</button>
+                <p class="notice" id="attachMessage">예전에 아이디와 비밀번호만으로 만든 계정에 이메일을 연결할 수 있습니다.</p>
+              </div>
+              <div class="form-divider"></div>
+              <div class="reset-form">
+                <h3 style="margin:0;font-size:15px;">비밀번호를 잊었나요?</h3>
+                <input class="field" id="resetLoginInput" placeholder="가입한 이메일 또는 아이디">
+                <div style="display:grid;grid-template-columns:1fr auto;gap:8px;">
+                  <input class="field" id="resetCodeInput" placeholder="인증번호 6자리">
+                  <button class="btn" id="sendResetCode" type="button">인증번호</button>
+                </div>
+                <input class="field" id="newPasswordInput" type="password" placeholder="새 비밀번호">
+                <button class="btn warn" id="resetPasswordBtn" type="button">비밀번호 초기화</button>
+                <p class="notice warning" id="resetMessage">로컬 프로토타입이라 실제 이메일 발송 대신 개발용 인증번호를 화면에 표시합니다.</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2>현재 계정 상태</h2>
+            </div>
+            <div class="panel-body detail-grid" id="accountStatus"></div>
+            <div class="panel-body">
+              <div class="form-divider"></div>
+              <div class="reset-form">
+                <h3 style="margin:0;font-size:15px;">비밀번호 변경</h3>
+                <input class="field" id="changeCurrentPassword" type="password" placeholder="현재 비밀번호">
+                <input class="field" id="changeNewPassword" type="password" placeholder="새 비밀번호">
+                <button class="btn primary" id="changePasswordBtn" type="button">비밀번호 바꾸기</button>
+                <p class="notice" id="changePasswordResult">로그인한 뒤 현재 비밀번호를 입력하면 직접 바꿀 수 있습니다.</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop hidden" id="plantModal">
+    <div class="modal">
+      <div class="panel-head">
+        <h2 id="modalTitle">식물 정보</h2>
+        <button class="btn" id="closeModal"><span class="icon" data-icon="x"></span>닫기</button>
+      </div>
+      <div class="panel-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script>
+    const plans = {
+      free: {
+        name: "FREE",
+        price: "0원",
+        scans: 3,
+        catalogLimit: 80,
+        yards: 1,
+        features: ["마당 1개 저장", "월 3회 도면 스캔", "도감 80개 미리보기", "기본 물주기 일정"]
+      },
+      plus: {
+        name: "PLUS",
+        price: "5,900원",
+        scans: Infinity,
+        catalogLimit: Infinity,
+        yards: 3,
+        features: ["사용량 무제한", "마당 3개 저장", "도감 전체 검색", "계절별 관리표", "기본 알림"]
+      },
+      max: {
+        name: "MAX",
+        price: "9,900원",
+        scans: Infinity,
+        catalogLimit: Infinity,
+        yards: Infinity,
+        features: ["모든 기능 사용", "AI 식물 인식", "가족 공유", "날씨 기반 자동 알림", "조경 리포트 PDF", "업체 견적 연결"]
+      }
+    };
+
+    const adminAccount = {
+      email: "jungeunchan0806@gmail.com",
+      username: "ec0806",
+      password: "Chan0806!",
+      name: "정은찬",
+      plan: "max",
+      role: "admin"
+    };
+
+    const state = {
+      view: "dashboard",
+      authMode: "login",
+      user: JSON.parse(localStorage.getItem("yardatlas_user") || "null"),
+      mapped: [],
+      catalog: [],
+      scanCount: Number(localStorage.getItem("yardatlas_scans") || "0"),
+      resetCodes: JSON.parse(localStorage.getItem("yardatlas_reset_codes") || "{}"),
+      device: "desktop",
+      serverStatus: { users: 0, resetCodes: 0, messages: 0 },
+      adminUsers: [],
+      adminMessages: [],
+      photoOverrides: {},
+      photoOverridesLoaded: false,
+      adminPhotoPlantId: null,
+      chatMessages: [],
+      loadingAdmin: false,
+      editMode: false
+    };
+
+    const essentialPlants = [
+      ["소나무", "Pinus densiflora", "tree"], ["단풍나무", "Acer palmatum", "tree"], ["자작나무", "Betula platyphylla", "tree"],
+      ["매화나무", "Prunus mume", "tree"], ["배롱나무", "Lagerstroemia indica", "tree"], ["느티나무", "Zelkova serrata", "tree"],
+      ["당근", "Daucus carota subsp. sativus", "vegetable"], ["감자", "Solanum tuberosum", "vegetable"], ["시금치", "Spinacia oleracea", "vegetable"],
+      ["고구마", "Ipomoea batatas", "vegetable"], ["무", "Raphanus sativus", "vegetable"], ["배추", "Brassica rapa subsp. pekinensis", "vegetable"],
+      ["양배추", "Brassica oleracea var. capitata", "vegetable"], ["브로콜리", "Brassica oleracea var. italica", "vegetable"], ["콜리플라워", "Brassica oleracea var. botrytis", "vegetable"],
+      ["상추", "Lactuca sativa", "vegetable"], ["케일", "Brassica oleracea var. sabellica", "vegetable"], ["청경채", "Brassica rapa subsp. chinensis", "vegetable"],
+      ["양파", "Allium cepa", "vegetable"], ["대파", "Allium fistulosum", "vegetable"], ["마늘", "Allium sativum", "vegetable"],
+      ["부추", "Allium tuberosum", "vegetable"], ["오이", "Cucumis sativus", "vegetable"], ["호박", "Cucurbita moschata", "vegetable"],
+      ["애호박", "Cucurbita pepo", "vegetable"], ["가지", "Solanum melongena", "vegetable"], ["토마토", "Solanum lycopersicum", "vegetable"],
+      ["고추", "Capsicum annuum", "vegetable"], ["파프리카", "Capsicum annuum Grossum Group", "vegetable"], ["옥수수", "Zea mays", "crop"],
+      ["벼", "Oryza sativa", "crop"], ["밀", "Triticum aestivum", "crop"], ["보리", "Hordeum vulgare", "crop"],
+      ["귀리", "Avena sativa", "crop"], ["호밀", "Secale cereale", "crop"], ["메밀", "Fagopyrum esculentum", "crop"],
+      ["콩", "Glycine max", "crop"], ["완두", "Pisum sativum", "crop"], ["강낭콩", "Phaseolus vulgaris", "crop"],
+      ["팥", "Vigna angularis", "crop"], ["녹두", "Vigna radiata", "crop"], ["참깨", "Sesamum indicum", "crop"],
+      ["들깨", "Perilla frutescens", "crop"], ["해바라기", "Helianthus annuus", "flower"], ["사과나무", "Malus domestica", "tree"],
+      ["배나무", "Pyrus pyrifolia", "tree"], ["복숭아나무", "Prunus persica", "tree"], ["자두나무", "Prunus salicina", "tree"],
+      ["살구나무", "Prunus armeniaca", "tree"], ["체리나무", "Prunus avium", "tree"], ["감나무", "Diospyros kaki", "tree"],
+      ["대추나무", "Ziziphus jujuba", "tree"], ["밤나무", "Castanea crenata", "tree"], ["호두나무", "Juglans regia", "tree"],
+      ["포도", "Vitis vinifera", "vine"], ["키위", "Actinidia deliciosa", "vine"], ["딸기", "Fragaria ananassa", "fruit"],
+      ["블루베리", "Vaccinium corymbosum", "shrub"], ["라즈베리", "Rubus idaeus", "shrub"], ["무화과나무", "Ficus carica", "tree"],
+      ["귤나무", "Citrus unshiu", "tree"], ["레몬나무", "Citrus limon", "tree"], ["라임나무", "Citrus aurantiifolia", "tree"],
+      ["유자나무", "Citrus junos", "tree"], ["석류나무", "Punica granatum", "tree"], ["올리브나무", "Olea europaea", "tree"],
+      ["로즈마리", "Salvia rosmarinus", "herb"], ["타임", "Thymus vulgaris", "herb"], ["민트", "Mentha spicata", "herb"],
+      ["바질", "Ocimum basilicum", "herb"], ["차이브", "Allium schoenoprasum", "herb"], ["세이지", "Salvia officinalis", "herb"],
+      ["고수", "Coriandrum sativum", "herb"], ["파슬리", "Petroselinum crispum", "herb"], ["딜", "Anethum graveolens", "herb"],
+      ["오레가노", "Origanum vulgare", "herb"], ["라벤더", "Lavandula angustifolia", "flower"], ["장미", "Rosa chinensis", "flower"],
+      ["수국", "Hydrangea macrophylla", "shrub"], ["철쭉", "Rhododendron schlippenbachii", "shrub"], ["회양목", "Buxus microphylla", "shrub"],
+      ["남천", "Nandina domestica", "shrub"], ["라일락", "Syringa vulgaris", "shrub"], ["목련", "Magnolia kobus", "tree"],
+      ["동백나무", "Camellia japonica", "tree"], ["무궁화", "Hibiscus syriacus", "shrub"], ["개나리", "Forsythia koreana", "shrub"],
+      ["진달래", "Rhododendron mucronulatum", "shrub"], ["국화", "Chrysanthemum morifolium", "flower"], ["작약", "Paeonia lactiflora", "flower"],
+      ["튤립", "Tulipa gesneriana", "flower"], ["수선화", "Narcissus tazetta", "flower"], ["아이리스", "Iris sanguinea", "flower"],
+      ["코스모스", "Cosmos bipinnatus", "flower"], ["금계국", "Coreopsis drummondii", "flower"], ["루드베키아", "Rudbeckia hirta", "flower"],
+      ["잔디", "Zoysia japonica", "grass"], ["억새", "Miscanthus sinensis", "grass"], ["수크령", "Pennisetum alopecuroides", "grass"],
+      ["맥문동", "Liriope muscari", "grass"], ["사초", "Carex morrowii", "grass"], ["고사리", "Pteridium aquilinum", "fern"],
+      ["관중", "Dryopteris crassirhizoma", "fern"], ["알로에", "Aloe vera", "succulent"], ["에케베리아", "Echeveria elegans", "succulent"],
+      ["세덤", "Sedum sarmentosum", "succulent"], ["용설란", "Agave americana", "succulent"], ["칼랑코에", "Kalanchoe blossfeldiana", "succulent"],
+      ["하월시아", "Haworthia attenuata", "succulent"], ["연꽃", "Nelumbo nucifera", "aquatic"], ["수련", "Nymphaea tetragona", "aquatic"]
+    ];
+
+    const generatedGenera = [
+      ["Abelia", "아벨리아", "shrub"], ["Abies", "전나무", "tree"], ["Abutilon", "아부틸론", "shrub"], ["Acacia", "아카시아", "tree"],
+      ["Acanthus", "아칸서스", "flower"], ["Acer", "단풍", "tree"], ["Achillea", "서양톱풀", "flower"], ["Aconitum", "투구꽃", "flower"],
+      ["Actaea", "승마", "flower"], ["Adenium", "사막장미", "succulent"], ["Adiantum", "공작고사리", "fern"], ["Aegopodium", "그라운드엘더", "herb"],
+      ["Agapanthus", "아가판서스", "flower"], ["Agastache", "배초향", "herb"], ["Ajuga", "조개나물", "flower"], ["Albizia", "자귀나무", "tree"],
+      ["Alcea", "접시꽃", "flower"], ["Alchemilla", "레이디스맨틀", "herb"], ["Allamanda", "알라만다", "vine"], ["Alnus", "오리나무", "tree"],
+      ["Alocasia", "알로카시아", "foliage"], ["Alstroemeria", "알스트로메리아", "flower"], ["Amaranthus", "아마란스", "crop"], ["Amaryllis", "아마릴리스", "flower"],
+      ["Amelanchier", "준베리", "tree"], ["Anemone", "아네모네", "flower"], ["Angelica", "당귀", "herb"], ["Anthemis", "캐모마일", "herb"],
+      ["Anthurium", "안스리움", "foliage"], ["Aquilegia", "매발톱꽃", "flower"], ["Arabis", "장대냉이", "flower"], ["Aralia", "두릅나무", "shrub"],
+      ["Araucaria", "아라우카리아", "tree"], ["Arbutus", "딸기나무", "tree"], ["Arctostaphylos", "베어베리", "shrub"], ["Artemisia", "쑥", "herb"],
+      ["Arum", "천남성", "foliage"], ["Asarum", "족도리풀", "flower"], ["Asclepias", "밀크위드", "flower"], ["Aspidistra", "엽란", "foliage"],
+      ["Aster", "아스터", "flower"], ["Astilbe", "노루오줌", "flower"], ["Aucuba", "식나무", "shrub"], ["Azalea", "아잘레아", "shrub"],
+      ["Baptisia", "인디고", "flower"], ["Begonia", "베고니아", "flower"], ["Berberis", "매자나무", "shrub"], ["Bergenia", "베르게니아", "flower"],
+      ["Betula", "자작나무", "tree"], ["Bletilla", "자란", "flower"], ["Borago", "보리지", "herb"], ["Bougainvillea", "부겐빌레아", "vine"],
+      ["Brunnera", "브루네라", "flower"], ["Buddleja", "부들레아", "shrub"], ["Caladium", "칼라디움", "foliage"], ["Callistemon", "병솔나무", "shrub"],
+      ["Calluna", "헤더", "shrub"], ["Caltha", "동의나물", "aquatic"], ["Campanula", "초롱꽃", "flower"], ["Canna", "칸나", "flower"],
+      ["Caragana", "카라가나", "shrub"], ["Cardamine", "황새냉이", "flower"], ["Carex", "사초", "grass"], ["Carpinus", "서어나무", "tree"],
+      ["Caryopteris", "층꽃나무", "shrub"], ["Castanea", "밤나무", "tree"], ["Catalpa", "개오동", "tree"], ["Ceanothus", "시아노서스", "shrub"],
+      ["Cedrus", "개잎갈나무", "tree"], ["Celosia", "맨드라미", "flower"], ["Celtis", "팽나무", "tree"], ["Centaurea", "수레국화", "flower"],
+      ["Cephalotaxus", "개비자나무", "tree"], ["Cercis", "박태기나무", "tree"], ["Chaenomeles", "명자나무", "shrub"], ["Chamaecyparis", "편백", "tree"],
+      ["Chelone", "첼론", "flower"], ["Chionanthus", "이팝나무", "tree"], ["Choisya", "초이시아", "shrub"], ["Cimicifuga", "촛대승마", "flower"],
+      ["Cistus", "시스터스", "shrub"], ["Clematis", "클레마티스", "vine"], ["Clethra", "클레트라", "shrub"], ["Clivia", "군자란", "flower"],
+      ["Cobaea", "코베아", "vine"], ["Colchicum", "콜키쿰", "flower"], ["Coleus", "콜레우스", "foliage"], ["Convallaria", "은방울꽃", "flower"],
+      ["Coprosma", "코프로스마", "shrub"], ["Cordyline", "코르딜리네", "foliage"], ["Cornus", "층층나무", "tree"], ["Cortaderia", "팜파스그래스", "grass"],
+      ["Cotinus", "안개나무", "shrub"], ["Cotoneaster", "홍자단", "shrub"], ["Crataegus", "산사나무", "tree"], ["Crocosmia", "크로코스미아", "flower"],
+      ["Cryptomeria", "삼나무", "tree"], ["Cuphea", "쿠페아", "flower"], ["Cupressus", "측백", "tree"], ["Cyclamen", "시클라멘", "flower"],
+      ["Cytisus", "양골담초", "shrub"], ["Dahlia", "달리아", "flower"], ["Daphne", "서향", "shrub"], ["Darmera", "다르메라", "flower"],
+      ["Delosperma", "송엽국", "succulent"], ["Delphinium", "델피니움", "flower"], ["Deutzia", "말발도리", "shrub"], ["Dianthus", "패랭이꽃", "flower"],
+      ["Dicentra", "금낭화", "flower"], ["Digitalis", "디기탈리스", "flower"], ["Diospyros", "감나무", "tree"], ["Dracaena", "드라세나", "foliage"],
+      ["Echinacea", "에키네시아", "flower"], ["Epimedium", "삼지구엽초", "flower"], ["Erica", "에리카", "shrub"], ["Euonymus", "화살나무", "shrub"],
+      ["Eupatorium", "등골나물", "flower"], ["Euphorbia", "유포르비아", "succulent"], ["Fagus", "너도밤나무", "tree"], ["Fatsia", "팔손이", "shrub"],
+      ["Festuca", "김의털", "grass"], ["Ficus", "고무나무", "tree"], ["Filipendula", "터리풀", "flower"], ["Forsythia", "개나리", "shrub"],
+      ["Fothergilla", "포더길라", "shrub"], ["Fraxinus", "물푸레나무", "tree"], ["Fuchsia", "후크시아", "flower"], ["Gaillardia", "천인국", "flower"],
+      ["Gardenia", "치자나무", "shrub"], ["Gaura", "가우라", "flower"], ["Geranium", "제라늄", "flower"], ["Geum", "뱀무", "flower"],
+      ["Ginkgo", "은행나무", "tree"], ["Gladiolus", "글라디올러스", "flower"], ["Gleditsia", "주엽나무", "tree"], ["Hakonechloa", "풍지초", "grass"],
+      ["Hamamelis", "풍년화", "shrub"], ["Hedera", "아이비", "vine"], ["Helenium", "헬레니움", "flower"], ["Helianthemum", "해바라기꽃", "flower"],
+      ["Helichrysum", "헬리크리섬", "flower"], ["Helleborus", "헬레보루스", "flower"], ["Heuchera", "휴케라", "foliage"], ["Hibiscus", "히비스커스", "shrub"],
+      ["Hosta", "비비추", "foliage"], ["Houttuynia", "어성초", "herb"], ["Hyacinthus", "히아신스", "flower"], ["Hydrangea", "수국", "shrub"],
+      ["Hypericum", "물레나물", "shrub"], ["Iberis", "이베리스", "flower"], ["Ilex", "호랑가시나무", "shrub"], ["Impatiens", "봉선화", "flower"],
+      ["Iris", "붓꽃", "flower"], ["Jasminum", "재스민", "vine"], ["Juglans", "호두나무", "tree"], ["Juniperus", "향나무", "tree"],
+      ["Kniphofia", "트리토마", "flower"], ["Koelreuteria", "모감주나무", "tree"], ["Kolkwitzia", "콜크위치아", "shrub"], ["Lagerstroemia", "배롱나무", "tree"],
+      ["Lamium", "광대나물", "flower"], ["Lantana", "란타나", "flower"], ["Larix", "낙엽송", "tree"], ["Lavatera", "라바테라", "flower"],
+      ["Lavandula", "라벤더", "herb"], ["Leucanthemum", "샤스타데이지", "flower"], ["Leucothoe", "레우코토에", "shrub"], ["Ligularia", "곰취", "flower"],
+      ["Ligustrum", "쥐똥나무", "shrub"], ["Lilium", "백합", "flower"], ["Liquidambar", "풍나무", "tree"], ["Liriope", "맥문동", "grass"],
+      ["Lobelia", "로벨리아", "flower"], ["Lonicera", "인동", "vine"], ["Lupinus", "루피너스", "flower"], ["Magnolia", "목련", "tree"],
+      ["Mahonia", "마호니아", "shrub"], ["Malus", "사과나무", "tree"], ["Matteuccia", "청나래고사리", "fern"], ["Metasequoia", "메타세쿼이아", "tree"],
+      ["Miscanthus", "억새", "grass"], ["Molinia", "몰리니아", "grass"], ["Monarda", "모나르다", "herb"], ["Morus", "뽕나무", "tree"],
+      ["Musa", "바나나", "tree"], ["Myrtus", "은매화", "shrub"], ["Nandina", "남천", "shrub"], ["Nepeta", "개박하", "herb"],
+      ["Nerium", "협죽도", "shrub"], ["Nymphaea", "수련", "aquatic"], ["Oenothera", "달맞이꽃", "flower"], ["Ophiopogon", "소엽맥문동", "grass"],
+      ["Osmanthus", "목서", "shrub"], ["Paeonia", "작약", "flower"], ["Panicum", "기장", "grass"], ["Papaver", "양귀비", "flower"],
+      ["Parthenocissus", "담쟁이덩굴", "vine"], ["Passiflora", "시계꽃", "vine"], ["Penstemon", "펜스테몬", "flower"], ["Perovskia", "러시안세이지", "herb"],
+      ["Philadelphus", "고광나무", "shrub"], ["Phlox", "플록스", "flower"], ["Photinia", "홍가시나무", "shrub"], ["Picea", "가문비나무", "tree"],
+      ["Pieris", "마취목", "shrub"], ["Pinus", "소나무", "tree"], ["Platanus", "플라타너스", "tree"], ["Polemonium", "꽃고비", "flower"],
+      ["Polygonatum", "둥굴레", "flower"], ["Populus", "포플러", "tree"], ["Potentilla", "양지꽃", "flower"], ["Prunus", "벚나무", "tree"],
+      ["Pseudotsuga", "미송", "tree"], ["Pyracantha", "피라칸사", "shrub"], ["Pyrus", "배나무", "tree"], ["Quercus", "참나무", "tree"],
+      ["Rhododendron", "진달래", "shrub"], ["Rhus", "붉나무", "tree"], ["Ribes", "까치밥나무", "shrub"], ["Robinia", "아까시나무", "tree"],
+      ["Rosa", "장미", "flower"], ["Rosmarinus", "로즈마리", "herb"], ["Rudbeckia", "루드베키아", "flower"], ["Salix", "버드나무", "tree"],
+      ["Salvia", "샐비어", "herb"], ["Sambucus", "딱총나무", "shrub"], ["Sanguisorba", "오이풀", "flower"], ["Saxifraga", "범의귀", "flower"],
+      ["Sedum", "돌나물", "succulent"], ["Sempervivum", "바위솔", "succulent"], ["Sorbus", "마가목", "tree"], ["Spiraea", "조팝나무", "shrub"],
+      ["Stachys", "석잠풀", "herb"], ["Stipa", "깃털풀", "grass"], ["Styrax", "때죽나무", "tree"], ["Syringa", "라일락", "shrub"],
+      ["Taxus", "주목", "tree"], ["Thalictrum", "꿩의다리", "flower"], ["Thuja", "서양측백", "tree"], ["Tilia", "피나무", "tree"],
+      ["Tradescantia", "자주달개비", "flower"], ["Tricyrtis", "뻐꾹나리", "flower"], ["Tsuga", "솔송나무", "tree"], ["Ulmus", "느릅나무", "tree"],
+      ["Vaccinium", "블루베리", "shrub"], ["Verbascum", "우단담배풀", "flower"], ["Verbena", "버베나", "flower"], ["Viburnum", "산분꽃나무", "shrub"],
+      ["Vinca", "빈카", "flower"], ["Viola", "제비꽃", "flower"], ["Vitis", "포도", "vine"], ["Weigela", "병꽃나무", "shrub"],
+      ["Wisteria", "등나무", "vine"], ["Yucca", "유카", "succulent"], ["Zelkova", "느티나무", "tree"]
+    ];
+
+    const speciesEpithets = [
+      ["alba", "알바"], ["alpina", "알피나"], ["americana", "아메리카나"], ["angustifolia", "앙구스티폴리아"],
+      ["arborescens", "아르보레센스"], ["aurea", "아우레아"], ["chinensis", "키넨시스"], ["cordata", "코르다타"],
+      ["elegans", "엘레강스"], ["floribunda", "플로리분다"], ["glauca", "글라우카"], ["grandiflora", "그란디플로라"],
+      ["japonica", "야포니카"], ["koreana", "코리아나"], ["lanceolata", "란케올라타"], ["latifolia", "라티폴리아"],
+      ["macrophylla", "마크로필라"], ["nana", "나나"], ["officinalis", "오피키날리스"], ["palustris", "팔루스트리스"],
+      ["paniculata", "파니쿨라타"], ["purpurea", "푸르푸레아"], ["repens", "레펜스"], ["rosea", "로세아"],
+      ["rubra", "루브라"], ["sanguinea", "상귀네아"], ["serrata", "세라타"], ["sibirica", "시비리카"],
+      ["sylvatica", "실바티카"], ["viridis", "비리디스"]
+    ];
+
+    const sunOptions = ["양지", "반양지", "음지"];
+    const waterOptions = ["주 1회 깊게", "주 2회 적당히", "흙이 마르면", "여름에는 2~3일 간격", "건조하게 관리"];
+    const soilOptions = ["배수 좋은 흙", "보습력 있는 흙", "약산성 토양", "모래 섞인 흙", "일반 정원토"];
+    const PHOTO_VERSION = "v23";
+
+    function makeCatalog() {
+      const list = [];
+      const seen = new Set();
+      let id = 1;
+
+      function addPlant(name, latin, type) {
+        const key = `${name}|${latin}`.toLowerCase();
+        if (seen.has(key) || list.length >= 1000) return;
+        seen.add(key);
+        const sun = sunOptions[(id + name.length) % sunOptions.length];
+        const water = waterOptions[id % waterOptions.length];
+        const soil = soilOptions[(id + 2) % soilOptions.length];
+        list.push({
+          id,
+          name,
+          baseName: name,
+          latin,
+          type,
+          sun,
+          water,
+          soil,
+          difficulty: ["쉬움", "보통", "세심함"][id % 3],
+          price: priceText(type, id),
+          photos: photoSet(name, latin, type, id),
+          purchaseLinks: purchaseLinks(name),
+          feature: featureText(type, sun, water),
+          seasons: seasonText(type)
+        });
+        id++;
+      }
+
+      essentialPlants.forEach(([name, latin, type]) => addPlant(name, latin, type));
+      for (const [species, speciesName] of speciesEpithets) {
+        for (const [genus, korean, type] of generatedGenera) {
+          if (list.length >= 1000) break;
+          addPlant(`${korean} ${speciesName}`, `${genus} ${species}`, type);
+        }
+        if (list.length >= 1000) break;
+      }
+      return list;
+    }
+
+    function encodedQuery(text) {
+      return encodeURIComponent(text);
+    }
+
+    function plantPhoto(name, latin, part, lock) {
+      return `/api/plant-photo?name=${encodedQuery(name)}&latin=${encodedQuery(latin)}&part=${encodedQuery(part)}&id=${lock}&v=${PHOTO_VERSION}`;
+    }
+
+    function plantFallback(label) {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="420" height="300" viewBox="0 0 420 300"><rect width="420" height="300" fill="#e9f1e8"/><path d="M210 238V104" stroke="#4f7d55" stroke-width="14" stroke-linecap="round"/><path d="M204 150c-50-48-106-41-139 3 45 21 94 18 139-3z" fill="#79a86c"/><path d="M216 129c38-54 96-62 139-24-35 32-84 43-139 24z" fill="#6b9d61"/><path d="M214 194c35-36 82-38 113-4-31 22-70 25-113 4z" fill="#8ab87d"/><ellipse cx="210" cy="244" rx="88" ry="18" fill="#d9e6d7"/><text x="210" y="274" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" fill="#35523a">${label}</text></svg>`;
+      return `data:image/svg+xml;charset=UTF-8,${encodedQuery(svg)}`;
+    }
+
+    function canShowFlower(name, latin, type) {
+      const text = `${name} ${latin}`.toLowerCase();
+      if (["grass", "succulent", "fern", "foliage", "crop", "vegetable"].includes(type)) return false;
+      if (/(pinus|juniperus|zoysia|miscanthus|pennisetum|festuca|carex|aloe|echeveria|sedum|agave|kalanchoe|haworthia)/i.test(text)) return false;
+      return true;
+    }
+
+    function photoSet(name, latin, type, id) {
+      const photos = [
+        { label: "전체 사진", url: plantPhoto(name, latin, "plant", id * 31 + 1), fallback: plantFallback("전체 사진") },
+        { label: "잎 사진", url: plantPhoto(name, latin, "leaf", id * 31 + 2), fallback: plantFallback("잎 사진") },
+        { label: "씨/열매 사진", url: plantPhoto(name, latin, "seed", id * 31 + 3), fallback: plantFallback("씨/열매 사진") }
+      ];
+      if (canShowFlower(name, latin, type)) {
+        photos.splice(2, 0, { label: "꽃 사진", url: plantPhoto(name, latin, "flower", id * 31 + 4), fallback: plantFallback("꽃 사진") });
+      }
+      return photos;
+    }
+
+    function priceText(type, id) {
+      const ranges = {
+        tree: [18000, 90000],
+        shrub: [9000, 45000],
+        flower: [2500, 18000],
+        grass: [3000, 22000],
+        herb: [2500, 15000],
+        succulent: [3000, 25000],
+        vegetable: [1000, 12000],
+        crop: [1000, 18000],
+        fruit: [4000, 24000],
+        vine: [7000, 35000],
+        fern: [5000, 26000],
+        foliage: [6000, 38000],
+        aquatic: [7000, 42000]
+      };
+      const [min, max] = ranges[type] || [3000, 30000];
+      const bump = (id % 5) * 1000;
+      return `${(min + bump).toLocaleString("ko-KR")}원 ~ ${(max + bump * 2).toLocaleString("ko-KR")}원`;
+    }
+
+    function purchaseLinks(name) {
+      const q = encodedQuery(name);
+      return [
+        { label: "네이버 쇼핑에서 보기", url: `https://search.shopping.naver.com/search/all?query=${q}` }
+      ];
+    }
+
+    function featureText(type, sun, water) {
+      const typeText = {
+        tree: "마당의 중심을 잡아 주는 수목으로 그늘과 계절감을 만듭니다.",
+        shrub: "경계와 화단 구조를 만드는 관목으로 가지치기 관리가 중요합니다.",
+        flower: "색과 향을 더하는 초화류로 개화기 전후 관리가 성패를 좌우합니다.",
+        grass: "바람에 흔들리는 질감과 낮은 유지관리가 장점인 그라스류입니다.",
+        herb: "향과 활용도가 높아 현관이나 데크 주변에 잘 어울립니다.",
+        succulent: "건조에 강하고 작은 공간에서도 포인트를 만들기 좋습니다.",
+        vegetable: "텃밭에서 수확을 목표로 기르는 작물로 흙과 물 관리가 중요합니다.",
+        crop: "넓은 밭이나 텃밭 구역에 어울리는 식용 작물입니다.",
+        fruit: "열매 수확을 기대할 수 있어 햇빛과 비료 관리가 중요합니다.",
+        vine: "지지대나 울타리를 따라 자라 공간을 입체적으로 씁니다.",
+        fern: "그늘과 습도를 좋아해 숲 느낌의 식재에 잘 맞습니다.",
+        foliage: "잎의 형태와 색으로 공간에 포인트를 주는 관엽식물입니다.",
+        aquatic: "연못이나 습지 화단처럼 물가 환경에 어울리는 수생식물입니다."
+      };
+      return `${typeText[type]} ${sun}에서 잘 자라며 물주기는 ${water}가 기준입니다.`;
+    }
+
+    function seasonText(type) {
+      const common = {
+        tree: ["새순과 꽃눈 확인", "수형 유지와 깊은 관수", "단풍과 낙엽 정리", "동해 방지와 전정 계획"],
+        shrub: ["새 가지와 꽃눈 관리", "개화 후 가지치기", "멀칭 보강", "찬바람 차단"],
+        flower: ["새싹 정리와 비료", "개화 관리와 꽃대 제거", "씨앗 또는 포기나누기", "월동 준비"],
+        grass: ["마른 잎 정리", "충분한 햇빛 확보", "이삭 감상과 묶어주기", "늦겨울 전정"],
+        herb: ["순지르기 시작", "수확과 통풍 관리", "목질화 가지 정리", "실내 월동 확인"],
+        succulent: ["서서히 햇빛 적응", "과습 주의", "물주기 간격 늘림", "냉해 방지"],
+        vegetable: ["파종과 모종 심기", "웃거름과 병해충 확인", "수확과 잔재 정리", "다음 작기 계획"],
+        crop: ["파종과 토양 준비", "생육기 관수와 김매기", "수확과 건조", "종자와 밭 정리"],
+        fruit: ["꽃눈과 새순 관리", "착과와 병해충 점검", "수확과 전정 준비", "동해 방지"],
+        vine: ["지지대 유인", "덩굴 정리와 통풍", "열매 또는 꽃 감상", "묵은 줄기 정리"],
+        fern: ["새순 보호", "습도 유지", "마른 잎 제거", "월동 멀칭"],
+        foliage: ["분갈이와 새잎 관리", "강한 직사광선 피하기", "잎 먼지 제거", "실내 온도 유지"],
+        aquatic: ["수위와 새순 확인", "물 온도와 부유물 관리", "시든 잎 정리", "뿌리 동해 방지"]
+      };
+      return {
+        spring: common[type][0],
+        summer: common[type][1],
+        autumn: common[type][2],
+        winter: common[type][3]
+      };
+    }
+
+    function icon(name) {
+      return `<span class="icon" data-icon="${name}"></span>`;
+    }
+
+    function currentPlan() {
+      return plans[state.user?.plan || "free"];
+    }
+
+    function loadUsers() {
+      return JSON.parse(localStorage.getItem("yardatlas_users") || "{}");
+    }
+
+    function saveUsers(users) {
+      localStorage.setItem("yardatlas_users", JSON.stringify(users));
+    }
+
+    function saveResetCodes() {
+      localStorage.setItem("yardatlas_reset_codes", JSON.stringify(state.resetCodes));
+    }
+
+    async function api(path, payload) {
+      const response = await fetch(path, {
+        method: payload ? "POST" : "GET",
+        headers: payload ? { "Content-Type": "application/json" } : {},
+        body: payload ? JSON.stringify(payload) : undefined
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "요청에 실패했습니다.");
+      return data;
+    }
+
+    async function refreshServerStatus() {
+      try {
+        state.serverStatus = await api("/api/status");
+      } catch {
+        state.serverStatus = { users: 0, resetCodes: 0 };
+      }
+    }
+
+    function seedAdminAccount() {
+      const users = loadUsers();
+      users[adminAccount.email] = { ...adminAccount };
+      users[adminAccount.username] = { ...adminAccount };
+      saveUsers(users);
+      if (state.user && (state.user.email === adminAccount.email || state.user.username === adminAccount.username)) {
+        state.user = { ...adminAccount };
+        localStorage.setItem("yardatlas_user", JSON.stringify(state.user));
+      }
+    }
+
+    function setView(view) {
+      state.view = view;
+      document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
+      document.querySelector(`#view-${view}`).classList.remove("hidden");
+      document.querySelectorAll(".nav button").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view));
+      render();
+      if (view === "chat") refreshChat();
+    }
+
+    function renderIcons() {
+      if (window.lucide) {
+        window.lucide.createIcons();
+      }
+    }
+
+    function render() {
+      renderAccount();
+      renderStats();
+      renderPricing();
+      renderCatalog();
+      renderTasks();
+      renderMappedPlants();
+      renderAdmin();
+      renderChat();
+      renderDevice();
+      renderIcons();
+    }
+
+    function detectDevice() {
+      const forceMobile = location.pathname === "/mobile" || new URLSearchParams(location.search).has("mobile");
+      const forceDesktop = location.pathname === "/pc" || new URLSearchParams(location.search).has("pc");
+      const mobileByWidth = window.matchMedia("(max-width: 680px)").matches;
+      const mobileByPointer = window.matchMedia("(pointer: coarse)").matches;
+      state.device = forceDesktop ? "desktop" : (forceMobile || mobileByWidth || mobileByPointer ? "mobile" : "desktop");
+      document.body.classList.toggle("is-mobile", state.device === "mobile");
+      document.body.classList.toggle("is-desktop", state.device === "desktop");
+    }
+
+    function renderDevice() {
+      const label = document.getElementById("deviceLabel");
+      if (!label) return;
+      label.innerHTML = state.device === "mobile" ? `${icon("smartphone")}모바일 UI` : `${icon("monitor")}PC UI`;
+    }
+
+    function renderAccount() {
+      const plan = currentPlan();
+      document.getElementById("planLabel").textContent = plan.name;
+      document.getElementById("accountLabel").textContent = state.user ? `${state.user.name || state.user.email} 님` : "로그인하면 마당 지도를 저장할 수 있어요.";
+      document.getElementById("logoutBtn").style.visibility = state.user ? "visible" : "hidden";
+      document.getElementById("adminNav").classList.toggle("hidden", state.user?.role !== "admin");
+      const status = document.getElementById("accountStatus");
+      if (!status) return;
+      status.innerHTML = `
+        <div class="detail"><h3>로그인 상태</h3><p>${state.user ? `${state.user.email}${state.user.username ? ` · 아이디 ${state.user.username}` : ""} 로그인 중` : "아직 로그인하지 않았습니다."}</p></div>
+        <div class="detail"><h3>현재 요금제</h3><p>${plan.name} · 도면 스캔 ${plan.scans === Infinity ? "무제한" : `월 ${plan.scans}회`} · 마당 ${plan.yards === Infinity ? "무제한" : `${plan.yards}개`}</p></div>
+        <div class="detail"><h3>권한</h3><p>${state.user?.role === "admin" ? "관리자 권한. 모든 기능과 서버 관리 화면을 사용할 수 있습니다." : "일반 사용자 권한입니다."}</p></div>
+        <div class="detail"><h3>프로토타입 안내</h3><p>회원 정보는 이 브라우저의 localStorage에만 저장됩니다. 실제 서비스에서는 서버 인증과 결제 연동이 필요합니다.</p></div>
+      `;
+    }
+
+    function renderAdmin() {
+      const adminView = document.getElementById("view-admin");
+      if (!adminView) return;
+      const users = loadUsers();
+      const uniqueUsers = new Map();
+      Object.values(users).forEach(user => uniqueUsers.set(user.email || user.username, user));
+      document.getElementById("adminUsers").textContent = state.serverStatus.users || uniqueUsers.size;
+      document.getElementById("adminPlants").textContent = state.catalog.length.toLocaleString("ko-KR");
+      document.getElementById("adminScans").textContent = state.scanCount;
+      document.getElementById("adminStatus").innerHTML = `
+        <div class="detail"><h3>관리자 계정</h3><p>${adminAccount.email} · 아이디 ${adminAccount.username} · MAX 요금제 · 서버 관리 권한</p></div>
+        <div class="detail"><h3>권한 정책</h3><p>무료는 제한 사용, 플러스는 무제한 사용과 일부 기능, 맥스는 전체 기능과 고급 분석을 사용할 수 있습니다. 관리자는 여기에 운영 기능까지 접근합니다.</p></div>
+        <div class="detail"><h3>채팅</h3><p>현재 사용자 채팅 ${state.serverStatus.messages || state.chatMessages.length || state.adminMessages.length}개가 저장되어 있습니다. 채팅은 왼쪽 메뉴의 독립 창에서 확인합니다.</p></div>
+        <div class="detail"><h3>앱스토어 배포</h3><p>PWA 파일을 추가했기 때문에 브라우저 설치형 앱으로 시작할 수 있습니다. Play 스토어는 TWA/Bubblewrap, App Store는 Capacitor 또는 React Native WebView로 감싸서 심사 제출하는 방식이 현실적입니다.</p></div>
+      `;
+      renderAdminUsers();
+      renderAdminPhotoManager();
+      if (state.user?.role === "admin" && state.view === "admin" && !state.loadingAdmin && !state.adminUsers.length) {
+        refreshAdminData();
+      }
+      if (state.user?.role === "admin" && state.view === "admin" && !state.photoOverridesLoaded) {
+        refreshPlantPhotoOverrides();
+      }
+      if (state.user?.role !== "admin" && state.view === "admin") {
+        setView("dashboard");
+      }
+    }
+
+    function photoOverrideKey(plant) {
+      return String(plant?.latin || plant?.name || "")
+        .toLowerCase()
+        .replace(/'[^']*'/g, "")
+        .replace(/\b(var\.|cv\.|cultivar)\b/gi, "")
+        .replace(/[^a-z0-9가-힣]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+    }
+
+    function renderAdminPhotoManager() {
+      const results = document.getElementById("adminPlantResults");
+      const editor = document.getElementById("adminPhotoEditor");
+      const input = document.getElementById("adminPlantSearch");
+      if (!results || !editor || !input) return;
+      const q = input.value.trim().toLowerCase();
+      const matches = state.catalog
+        .filter(plant => !q || `${plant.name} ${plant.latin}`.toLowerCase().includes(q))
+        .slice(0, 30);
+      if (!state.adminPhotoPlantId && matches[0]) state.adminPhotoPlantId = matches[0].id;
+      if (!matches.find(plant => plant.id === state.adminPhotoPlantId) && matches[0]) state.adminPhotoPlantId = matches[0].id;
+      results.innerHTML = matches.map(plant => `
+        <button type="button" class="${plant.id === state.adminPhotoPlantId ? "active" : ""}" data-admin-plant-id="${plant.id}">
+          <b>${plant.name}</b>
+          <span>${plant.latin}</span>
+        </button>
+      `).join("") || `<div class="detail"><h3>검색 결과 없음</h3><p>다른 이름이나 학명으로 검색하세요.</p></div>`;
+      results.querySelectorAll("[data-admin-plant-id]").forEach(button => {
+        button.addEventListener("click", () => {
+          state.adminPhotoPlantId = Number(button.dataset.adminPlantId);
+          renderAdminPhotoManager();
+        });
+      });
+      const plant = state.catalog.find(item => item.id === state.adminPhotoPlantId);
+      if (!plant) {
+        editor.innerHTML = `<h3>식물을 선택하세요</h3><p>관리자가 올린 사진은 자동 검색보다 우선 적용됩니다.</p>`;
+        return;
+      }
+      const parts = [
+        ["plant", "전체 사진"],
+        ["leaf", "잎 사진"],
+        ["flower", "꽃 사진"],
+        ["seed", "씨/열매 사진"]
+      ];
+      const key = photoOverrideKey(plant);
+      editor.innerHTML = `
+        <h3>${plant.name}</h3>
+        <p>${plant.latin}</p>
+        <div class="admin-upload-grid" style="margin-top:10px;">
+          ${parts.map(([part, label]) => {
+            const hasManual = !!state.photoOverrides[key]?.[part]?.dataUrl;
+            const preview = `/api/plant-photo?name=${encodedQuery(plant.name)}&latin=${encodedQuery(plant.latin)}&part=${part}&id=${plant.id * 31 + 90}&v=${PHOTO_VERSION}-${Date.now()}`;
+            return `
+              <div class="admin-upload-card">
+                <img src="${preview}" data-fallback-src="${plantFallback(label)}" alt="${plant.name} ${label}">
+                <b>${label}</b>
+                <span class="tag">${hasManual ? "관리자 업로드 적용됨" : "자동 사진"}</span>
+                <input type="file" accept="image/png,image/jpeg,image/webp" data-upload-part="${part}">
+              </div>
+            `;
+          }).join("")}
+        </div>
+        <p class="notice" id="adminPhotoResult" style="margin-top:10px;">사진을 선택하면 바로 서버에 저장됩니다.</p>
+      `;
+      editor.querySelectorAll("input[data-upload-part]").forEach(fileInput => {
+        fileInput.addEventListener("change", () => uploadAdminPlantPhoto(plant, fileInput.dataset.uploadPart, fileInput.files?.[0]));
+      });
+      hydratePlantImages(editor);
+    }
+
+    async function refreshPlantPhotoOverrides() {
+      if (state.user?.role !== "admin") return;
+      try {
+        const data = await api("/api/admin/plant-photos", { adminLoginId: state.user.email || state.user.username });
+        state.photoOverrides = data.overrides || {};
+        state.photoOverridesLoaded = true;
+        renderAdminPhotoManager();
+      } catch {
+        state.photoOverrides = {};
+        state.photoOverridesLoaded = true;
+      }
+    }
+
+    function fileToCompressedDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        if (!file) {
+          reject(new Error("이미지 파일을 선택하세요."));
+          return;
+        }
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error("이미지를 읽을 수 없습니다."));
+        reader.onload = () => {
+          const img = new Image();
+          img.onerror = () => reject(new Error("이미지를 열 수 없습니다."));
+          img.onload = () => {
+            const max = 1000;
+            const scale = Math.min(1, max / Math.max(img.width, img.height));
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.max(1, Math.round(img.width * scale));
+            canvas.height = Math.max(1, Math.round(img.height * scale));
+            const context = canvas.getContext("2d");
+            context.drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL("image/jpeg", 0.84));
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function uploadAdminPlantPhoto(plant, part, file) {
+      const result = document.getElementById("adminPhotoResult");
+      if (!state.user || state.user.role !== "admin") return;
+      try {
+        if (result) result.textContent = "사진을 압축해서 업로드하는 중입니다...";
+        const dataUrl = await fileToCompressedDataUrl(file);
+        await api("/api/admin/plant-photo", {
+          adminLoginId: state.user.email || state.user.username,
+          name: plant.name,
+          latin: plant.latin,
+          part,
+          dataUrl
+        });
+        await refreshPlantPhotoOverrides();
+        renderCatalog();
+        if (result) result.textContent = "사진 저장 완료. 도감 화면에 바로 반영됩니다.";
+      } catch (error) {
+        if (result) result.textContent = error.message || "사진 업로드에 실패했습니다.";
+      }
+    }
+
+    function renderAdminUsers() {
+      const root = document.getElementById("adminUsersTable");
+      if (!root) return;
+      if (!state.adminUsers.length) {
+        root.innerHTML = `<div class="detail"><h3>유저 목록 없음</h3><p>새로고침을 누르면 서버 계정 목록을 가져옵니다.</p></div>`;
+        return;
+      }
+      root.innerHTML = `
+        <table>
+          <thead><tr><th>이름</th><th>아이디</th><th>이메일</th><th>요금제</th><th>권한</th><th>비밀번호</th><th>관리</th></tr></thead>
+          <tbody>
+            ${state.adminUsers.map(user => `
+              <tr>
+                <td>${user.name || "-"}</td>
+                <td>${user.username || "-"}</td>
+                <td>${user.email || "<span class='tag'>이메일 없음</span>"}</td>
+                <td>${(user.plan || "free").toUpperCase()}</td>
+                <td>${user.role || "user"}</td>
+                <td>암호화 저장</td>
+                <td><button class="btn warn reset-user-password" data-login="${user.username || user.email}">초기화</button></td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+      root.querySelectorAll(".reset-user-password").forEach(button => {
+        button.addEventListener("click", () => resetUserPassword(button.dataset.login));
+      });
+    }
+
+    async function refreshAdminData() {
+      if (state.user?.role !== "admin") return;
+      state.loadingAdmin = true;
+      try {
+        const adminLoginId = state.user.email || state.user.username;
+        const users = await api("/api/admin/users", { adminLoginId });
+        state.adminUsers = users.users || [];
+        await refreshServerStatus();
+      } catch (error) {
+        alert(error.message);
+      } finally {
+        state.loadingAdmin = false;
+        renderAdminUsers();
+        renderStats();
+      }
+    }
+
+    async function resetUserPassword(targetLoginId) {
+      if (!state.user || state.user.role !== "admin") return;
+      try {
+        const data = await api("/api/admin/reset-password", {
+          adminLoginId: state.user.email || state.user.username,
+          targetLoginId
+        });
+        alert(`${data.target.username || data.target.email} 임시 비밀번호: ${data.temporaryPassword}`);
+        await refreshAdminData();
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+
+    function renderChat() {
+      const root = document.getElementById("chatList");
+      if (!root) return;
+      document.getElementById("chatRoleTag").textContent = state.user?.role === "admin" ? "ADMIN" : "USER";
+      document.getElementById("chatListTitle").textContent = state.user?.role === "admin" ? "전체 사용자 채팅" : "내 채팅";
+      const composer = document.getElementById("chatComposer");
+      if (composer) composer.classList.toggle("hidden", state.user?.role === "admin");
+      if (!state.user) {
+        root.innerHTML = `<div class="detail"><h3>로그인이 필요합니다</h3><p>계정 메뉴에서 로그인한 뒤 채팅을 사용할 수 있습니다.</p></div>`;
+        return;
+      }
+      if (!state.chatMessages.length) {
+        root.innerHTML = `<div class="detail"><h3>아직 채팅이 없습니다</h3><p>오른쪽 입력창에서 관리자에게 문의를 보내보세요.</p></div>`;
+        return;
+      }
+      root.innerHTML = state.chatMessages.map(message => `
+        <div class="thread">
+          <div class="bubble">
+            ${message.text}
+            <small>${message.fromName || message.fromUsername || "사용자"} · ${new Date(message.createdAt).toLocaleString("ko-KR")}</small>
+          </div>
+          ${(message.replies || []).map(reply => `
+            <div class="bubble admin">
+              ${reply.text}
+              <small>${reply.fromName || "관리자"} · ${new Date(reply.createdAt).toLocaleString("ko-KR")}</small>
+            </div>
+          `).join("")}
+          ${state.user?.role === "admin" ? `
+            <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px;">
+              <input class="field reply-input" data-message-id="${message.id}" placeholder="${message.fromUsername || message.fromEmail}에게 답장">
+              <button class="btn primary reply-btn" data-message-id="${message.id}">답장</button>
+            </div>
+          ` : ""}
+        </div>
+      `).join("");
+      root.querySelectorAll(".reply-btn").forEach(button => {
+        button.addEventListener("click", () => {
+          const input = root.querySelector(`.reply-input[data-message-id="${button.dataset.messageId}"]`);
+          replyChatMessage(button.dataset.messageId, input?.value || "");
+        });
+      });
+    }
+
+    async function refreshChat() {
+      if (!state.user) {
+        renderChat();
+        return;
+      }
+      try {
+        const data = await api("/api/chat/list", { loginId: state.user.email || state.user.username });
+        state.chatMessages = data.messages || [];
+        await refreshServerStatus();
+        renderChat();
+        renderIcons();
+      } catch (error) {
+        document.getElementById("chatResult").textContent = error.message;
+      }
+    }
+
+    async function sendChatMessage() {
+      const result = document.getElementById("chatResult");
+      if (!state.user) {
+        result.textContent = "로그인 후 채팅을 사용할 수 있습니다.";
+        return;
+      }
+      if (state.user.role === "admin") {
+        result.textContent = "관리자는 새 문의를 보낼 수 없습니다. 사용자 문의에 답장만 할 수 있습니다.";
+        return;
+      }
+      const text = document.getElementById("chatMessageInput").value.trim();
+      try {
+        await api("/api/chat/send", { loginId: state.user.email || state.user.username, text });
+        document.getElementById("chatMessageInput").value = "";
+        result.textContent = "채팅을 보냈습니다.";
+        await refreshChat();
+      } catch (error) {
+        result.textContent = error.message;
+      }
+    }
+
+    async function replyChatMessage(messageId, text) {
+      if (!state.user || state.user.role !== "admin") return;
+      try {
+        await api("/api/admin/chat/reply", {
+          adminLoginId: state.user.email || state.user.username,
+          messageId,
+          text
+        });
+        await refreshChat();
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+
+    async function changePassword() {
+      const result = document.getElementById("changePasswordResult");
+      if (!state.user) {
+        result.textContent = "로그인 후 비밀번호를 바꿀 수 있습니다.";
+        return;
+      }
+      try {
+        await api("/api/change-password", {
+          loginId: state.user.email || state.user.username,
+          currentPassword: document.getElementById("changeCurrentPassword").value,
+          newPassword: document.getElementById("changeNewPassword").value
+        });
+        document.getElementById("changeCurrentPassword").value = "";
+        document.getElementById("changeNewPassword").value = "";
+        result.textContent = "비밀번호가 변경되었습니다.";
+      } catch (error) {
+        result.textContent = error.message;
+      }
+    }
+
+    function renderStats() {
+      document.getElementById("mappedCount").textContent = state.mapped.length;
+      document.getElementById("catalogCount").textContent = state.catalog.length.toLocaleString("ko-KR");
+      document.getElementById("waterDue").textContent = state.mapped.filter(p => p.water.includes("주")).length;
+    }
+
+    function renderTasks() {
+      const root = document.getElementById("todayTasks");
+      const tasks = state.mapped.slice(0, 3);
+      if (!tasks.length) {
+        root.innerHTML = `<div class="detail"><h3>식물을 지도에 추가해보세요</h3><p>샘플 식물 추가를 누르면 물주기와 계절 관리 일정이 생성됩니다.</p></div>`;
+        return;
+      }
+      root.innerHTML = tasks.map(p => `<div class="detail"><h3>${p.name}</h3><p>${p.water}. 이번 계절 관리: ${p.seasons.summer}</p></div>`).join("");
+    }
+
+    function renderMappedPlants() {
+      const stage = document.getElementById("yardStage");
+      stage.classList.toggle("editing-layout", state.editMode);
+      stage.querySelectorAll(".plant-dot,.plant-label").forEach(el => el.remove());
+      state.mapped.forEach(plant => {
+        const dot = document.createElement("button");
+        dot.className = `plant-dot ${plant.type === "tree" ? "tree" : ""}`;
+        dot.style.left = `${plant.x}%`;
+        dot.style.top = `${plant.y}%`;
+        dot.title = plant.name;
+        dot.innerHTML = plant.type === "tree" ? icon("tree-pine") : icon("sprout");
+        dot.addEventListener("click", () => { if (!state.editMode) openPlant(plant); });
+        dot.addEventListener("pointerdown", event => startPlantDrag(event, plant));
+        stage.appendChild(dot);
+
+        const label = document.createElement("button");
+        label.className = "plant-label";
+        label.style.left = `${plant.x}%`;
+        label.style.top = `${plant.y}%`;
+        label.innerHTML = `${plant.name}<small>${plant.water}</small>`;
+        label.addEventListener("click", () => { if (!state.editMode) openPlant(plant); });
+        label.addEventListener("pointerdown", event => startPlantDrag(event, plant));
+        stage.appendChild(label);
+      });
+      renderIcons();
+    }
+
+    function saveMappedPlants() {
+      localStorage.setItem("yardatlas_mapped", JSON.stringify(state.mapped.map(plant => ({
+        id: plant.id,
+        x: plant.x,
+        y: plant.y
+      }))));
+    }
+
+    function loadMappedPlants() {
+      const saved = JSON.parse(localStorage.getItem("yardatlas_mapped") || "null");
+      if (!Array.isArray(saved) || !saved.length) return null;
+      return saved
+        .map(item => {
+          const plant = state.catalog.find(candidate => candidate.id === item.id);
+          return plant ? { ...plant, x: item.x, y: item.y } : null;
+        })
+        .filter(Boolean);
+    }
+
+    function startPlantDrag(event, plant) {
+      if (!state.editMode) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const stage = document.getElementById("yardStage");
+      const move = pointerEvent => {
+        const rect = stage.getBoundingClientRect();
+        plant.x = Math.max(3, Math.min(97, ((pointerEvent.clientX - rect.left) / rect.width) * 100));
+        plant.y = Math.max(5, Math.min(95, ((pointerEvent.clientY - rect.top) / rect.height) * 100));
+        renderMappedPlants();
+      };
+      const up = () => {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+        saveMappedPlants();
+        render();
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up);
+    }
+
+    function toggleEditLayout() {
+      state.editMode = !state.editMode;
+      const button = document.getElementById("editLayoutBtn");
+      button.classList.toggle("primary", state.editMode);
+      button.innerHTML = state.editMode ? `${icon("check")}수정 완료` : `${icon("move")}배치 수정`;
+      renderMappedPlants();
+      renderIcons();
+    }
+
+    function renderCatalog() {
+      const list = document.getElementById("plantList");
+      if (!list) return;
+      const q = document.getElementById("plantSearch").value.trim().toLowerCase();
+      const type = document.getElementById("plantTypeFilter").value;
+      const sun = document.getElementById("sunFilter").value;
+      const plan = currentPlan();
+      let filtered = state.catalog.filter(p => {
+        const matchQ = !q || `${p.name} ${p.latin} ${p.feature} ${p.water}`.toLowerCase().includes(q);
+        const matchType = type === "all" || p.type === type;
+        const matchSun = sun === "all" || p.sun === sun;
+        return matchQ && matchType && matchSun;
+      });
+      const limited = filtered.slice(0, plan.catalogLimit);
+      document.getElementById("catalogLock").classList.toggle("hidden", plan.catalogLimit === Infinity || filtered.length <= limited.length);
+      list.innerHTML = limited.map(p => `
+        <button class="plant-card" data-plant-id="${p.id}">
+          <img class="plant-thumb" src="${p.photos[0].url}" data-fallback-src="${p.photos[0].fallback}" alt="${p.name} 전체 사진" loading="lazy">
+          <h3>${p.name}</h3>
+          <p>${p.latin}</p>
+          <p><b>예상 가격</b> ${p.price}</p>
+          <div class="tags">
+            <span class="tag">${typeName(p.type)}</span>
+            <span class="tag">${p.sun}</span>
+            <span class="tag">${p.water}</span>
+          </div>
+        </button>
+      `).join("");
+      list.querySelectorAll(".plant-card").forEach(card => {
+        card.addEventListener("click", () => openPlant(state.catalog.find(p => p.id === Number(card.dataset.plantId))));
+      });
+      hydratePlantImages(list);
+    }
+
+    function hydratePlantImages(root = document) {
+      root.querySelectorAll("img[data-fallback-src]").forEach(img => {
+        if (img.dataset.photoBound === "true") return;
+        img.dataset.photoBound = "true";
+        img.addEventListener("load", () => {
+          img.dataset.photoLoaded = img.src.startsWith("data:image/svg+xml") ? "fallback" : "true";
+        });
+        img.addEventListener("error", () => {
+          img.dataset.photoFailed = "true";
+          img.src = img.dataset.fallbackSrc;
+        });
+      });
+    }
+
+    function renderPricing() {
+      const root = document.getElementById("pricingCards");
+      if (!root) return;
+      root.innerHTML = Object.entries(plans).map(([key, plan]) => `
+        <section class="price-card ${key === "max" ? "featured" : ""}">
+          <h3>${plan.name}</h3>
+          <div class="price">${plan.price}<small> / 월</small></div>
+          <ul class="features">${plan.features.map(f => `<li>${icon("check")} ${f}</li>`).join("")}</ul>
+          <button class="btn ${key === "max" ? "primary" : ""}" data-plan="${key}">${state.user?.plan === key ? "현재 요금제" : `${plan.name} 선택`}</button>
+        </section>
+      `).join("");
+      root.querySelectorAll("[data-plan]").forEach(btn => btn.addEventListener("click", () => choosePlan(btn.dataset.plan)));
+    }
+
+    function typeName(type) {
+      return {
+        tree: "나무",
+        shrub: "관목",
+        flower: "꽃",
+        grass: "그라스",
+        herb: "허브",
+        succulent: "다육",
+        vegetable: "채소",
+        crop: "작물",
+        fruit: "과채",
+        vine: "덩굴",
+        fern: "양치",
+        foliage: "관엽",
+        aquatic: "수생"
+      }[type] || type;
+    }
+
+
+
+    function loadTossSdk() {
+      if (window.TossPayments) return Promise.resolve();
+      return new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "https://js.tosspayments.com/v1/payment";
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    }
+
+    async function choosePlan(planKey) {
+      if (!state.user) {
+        setView("account");
+        document.getElementById("authMessage").textContent = "???? ????? ?? ???? ?? ???? ?????.";
+        return;
+      }
+      if (planKey === "free") {
+        const data = await api("/api/plan", { loginId: state.user.email || state.user.username, plan: planKey });
+        state.user = data.user;
+        localStorage.setItem("yardatlas_user", JSON.stringify(state.user));
+        render();
+        return;
+      }
+      try {
+        const order = await api("/api/payment/create", { loginId: state.user.email || state.user.username, plan: planKey });
+        if (order.provider === "toss" && order.tossClientKey) {
+          await loadTossSdk();
+          const tossPayments = TossPayments(order.tossClientKey);
+          tossPayments.requestPayment("??", {
+            amount: order.amount,
+            orderId: order.orderId,
+            orderName: order.orderName,
+            customerName: order.customerName,
+            customerEmail: order.customerEmail,
+            successUrl: order.successUrl,
+            failUrl: order.failUrl
+          });
+          return;
+        }
+        const data = await api("/api/payment/confirm", { orderId: order.orderId, mock: true });
+        state.user = data.user;
+        localStorage.setItem("yardatlas_user", JSON.stringify(state.user));
+        alert(order.orderName + " ??? ??? ???????. ?? ??? Toss ?? ??? ?????.");
+      } catch (error) {
+        alert(error.message || "?? ?? ? ??? ??????.");
+      }
+      render();
+    }
+
+    function openPlant(plant) {
+      document.getElementById("modalTitle").textContent = plant.name;
+      document.getElementById("modalBody").innerHTML = `
+        <div class="detail-grid">
+          <div class="photo-grid">
+            ${plant.photos.map(photo => `
+              <figure>
+                <img src="${photo.url}" data-fallback-src="${photo.fallback}" alt="${plant.name} ${photo.label}" loading="eager">
+                <figcaption>${photo.label}</figcaption>
+              </figure>
+            `).join("")}
+          </div>
+          <div class="detail"><h3>가격과 구매처</h3><p>예상 가격대: ${plant.price}. 실제 가격은 크기, 계절, 판매처에 따라 달라집니다.</p><div class="link-row">${plant.purchaseLinks.map(link => `<a href="${link.url}" target="_blank" rel="noopener">${link.label}</a>`).join("")}</div></div>
+          <div class="detail"><h3>특징</h3><p>${plant.feature}</p></div>
+          <div class="detail"><h3>물주기와 관리법</h3><p>${plant.water}. 토양은 ${plant.soil}이 좋고 난이도는 ${plant.difficulty}입니다. 뿌리 주변에 멀칭을 하면 여름 건조와 겨울 냉해를 줄일 수 있습니다.</p></div>
+          <div class="season-grid">
+            <div class="season"><b>봄</b>${plant.seasons.spring}</div>
+            <div class="season"><b>여름</b>${plant.seasons.summer}</div>
+            <div class="season"><b>가을</b>${plant.seasons.autumn}</div>
+            <div class="season"><b>겨울</b>${plant.seasons.winter}</div>
+          </div>
+          <button class="btn primary" id="addPlantFromDetail" type="button"><span class="icon" data-icon="map-pin-plus"></span>마당에 추가</button>
+        </div>
+      `;
+      document.getElementById("plantModal").classList.remove("hidden");
+      document.getElementById("addPlantFromDetail").addEventListener("click", () => addPlantToYard(plant));
+      hydratePlantImages(document.getElementById("modalBody"));
+      renderIcons();
+    }
+
+    function addPlantToYard(plant) {
+      const positions = [[18, 18], [78, 24], [24, 72], [72, 73], [84, 55], [35, 22], [16, 52], [64, 84]];
+      const pos = positions[state.mapped.length % positions.length];
+      state.mapped.push({ ...plant, x: pos[0], y: pos[1] });
+      saveMappedPlants();
+      document.getElementById("plantModal").classList.add("hidden");
+      setView("dashboard");
+    }
+
+    function addSamplePlants() {
+      const positions = [
+        [18, 18], [75, 18], [22, 70], [69, 75], [52, 22], [82, 54], [15, 47], [40, 82]
+      ];
+      const offset = state.mapped.length;
+      for (let i = 0; i < 4; i++) {
+        const plant = state.catalog[(offset * 7 + i * 19) % state.catalog.length];
+        if (!state.mapped.find(p => p.id === plant.id)) {
+          state.mapped.push({ ...plant, x: positions[(offset + i) % positions.length][0], y: positions[(offset + i) % positions.length][1] });
+        }
+      }
+      saveMappedPlants();
+      render();
+    }
+
+    function autoArrange() {
+      const positions = [[16, 18], [29, 28], [78, 22], [84, 38], [19, 72], [33, 77], [72, 73], [58, 20], [12, 52], [87, 60]];
+      state.mapped = state.mapped.map((p, i) => ({ ...p, x: positions[i % positions.length][0], y: positions[i % positions.length][1] }));
+      saveMappedPlants();
+      render();
+    }
+
+    async function handleAuth(event) {
+      event.preventDefault();
+      const loginId = document.getElementById("emailInput").value.trim();
+      const usernameInput = document.getElementById("usernameInput").value.trim();
+      const password = document.getElementById("passwordInput").value;
+      const name = document.getElementById("nameInput").value.trim();
+
+      if (state.authMode === "signup") {
+        const email = loginId.includes("@") ? loginId : "";
+        const username = usernameInput || (loginId.includes("@") ? loginId.split("@")[0] : loginId);
+        if (!email || !username) {
+          document.getElementById("authMessage").textContent = "회원가입에는 이메일과 아이디가 필요합니다.";
+          return;
+        }
+        try {
+          const data = await api("/api/signup", { email, username, password, name: name || username });
+          state.user = data.user;
+        } catch (error) {
+          document.getElementById("authMessage").textContent = error.message;
+          return;
+        }
+        localStorage.setItem("yardatlas_user", JSON.stringify(state.user));
+        document.getElementById("authMessage").textContent = "회원가입 완료. 무료 요금제로 시작합니다.";
+      } else {
+        try {
+          const data = await api("/api/login", { loginId, password });
+          state.user = data.user;
+        } catch (error) {
+          document.getElementById("authMessage").textContent = error.message;
+          return;
+        }
+        localStorage.setItem("yardatlas_user", JSON.stringify(state.user));
+        document.getElementById("authMessage").textContent = "로그인되었습니다.";
+      }
+      render();
+      await refreshServerStatus();
+      render();
+    }
+
+    function setAuthMode(mode) {
+      state.authMode = mode;
+      document.getElementById("loginTab").classList.toggle("active", mode === "login");
+      document.getElementById("signupTab").classList.toggle("active", mode === "signup");
+      document.getElementById("nameInput").classList.toggle("hidden", mode !== "signup");
+      document.getElementById("usernameInput").classList.toggle("hidden", mode !== "signup");
+      document.getElementById("authSubmit").textContent = mode === "login" ? "로그인" : "회원가입";
+      document.getElementById("emailInput").placeholder = mode === "login" ? "이메일 또는 아이디" : "이메일";
+    }
+
+    async function sendResetCode() {
+      const loginId = document.getElementById("resetLoginInput").value.trim();
+      try {
+        const data = await api("/api/reset/request", { loginId });
+        document.getElementById("resetMessage").textContent = `개발용 인증번호: ${data.devCode}. 실제 서비스에서는 ${data.email} 주소로 이메일을 발송합니다.`;
+      } catch (error) {
+        document.getElementById("resetMessage").textContent = error.message;
+      }
+    }
+
+    async function resetPassword() {
+      const loginId = document.getElementById("resetLoginInput").value.trim();
+      const code = document.getElementById("resetCodeInput").value.trim();
+      const newPassword = document.getElementById("newPasswordInput").value;
+      try {
+        await api("/api/reset/confirm", { loginId, code, newPassword });
+        document.getElementById("resetMessage").textContent = "비밀번호가 초기화되었습니다. 새 비밀번호로 로그인할 수 있습니다.";
+      } catch (error) {
+        document.getElementById("resetMessage").textContent = error.message;
+      }
+    }
+
+    async function attachEmail() {
+      const loginId = document.getElementById("attachLoginInput").value.trim();
+      const email = document.getElementById("attachEmailInput").value.trim();
+      const password = document.getElementById("attachPasswordInput").value;
+      try {
+        const data = await api("/api/add-email", { loginId, email, password });
+        if (state.user && (state.user.username === data.user.username || state.user.email === loginId)) {
+          state.user = data.user;
+          localStorage.setItem("yardatlas_user", JSON.stringify(state.user));
+        }
+        document.getElementById("attachMessage").textContent = "이메일이 계정에 연결되었습니다. 이제 이메일로도 로그인하고 비밀번호 복구를 할 수 있습니다.";
+        await refreshServerStatus();
+        render();
+      } catch (error) {
+        document.getElementById("attachMessage").textContent = error.message;
+      }
+    }
+
+    function runScan() {
+      const plan = currentPlan();
+      if (plan.scans !== Infinity && state.scanCount >= plan.scans) {
+        document.getElementById("scanResult").textContent = "무료 요금제의 월 3회 스캔을 모두 사용했습니다. 플러스 이상에서는 무제한으로 사용할 수 있습니다.";
+        return;
+      }
+      state.scanCount++;
+      localStorage.setItem("yardatlas_scans", String(state.scanCount));
+      const type = document.getElementById("scanType").selectedOptions[0].textContent;
+      document.getElementById("scanResult").textContent = `${type} 분석 완료: 집 외곽, 데크, 진입로, 화단 후보 3곳, 나무 후보 5곳을 찾은 것으로 시뮬레이션했습니다.`;
+      if (!state.mapped.length) addSamplePlants();
+    }
+
+
+    async function handlePaymentReturn() {
+      const params = new URLSearchParams(location.search);
+      if (params.get("payment") !== "success") return;
+      try {
+        const data = await api("/api/payment/confirm", {
+          orderId: params.get("orderId"),
+          paymentKey: params.get("paymentKey"),
+          amount: Number(params.get("amount") || 0)
+        });
+        state.user = data.user;
+        localStorage.setItem("yardatlas_user", JSON.stringify(state.user));
+        history.replaceState({}, "", location.pathname);
+        alert("??? ???? ???? ???????.");
+      } catch (error) {
+        alert(error.message || "?? ??? ??????.");
+      }
+    }
+
+    function init() {
+      detectDevice();
+      state.catalog = makeCatalog();
+      state.mapped = loadMappedPlants() || [
+        { ...state.catalog[0], x: 18, y: 18 },
+        { ...state.catalog[97], x: 78, y: 24 },
+        { ...state.catalog[301], x: 24, y: 72 },
+        { ...state.catalog[516], x: 72, y: 73 },
+        { ...state.catalog[724], x: 84, y: 55 }
+      ];
+
+      seedAdminAccount();
+      refreshServerStatus().then(render);
+      handlePaymentReturn();
+      document.querySelectorAll("[data-view]").forEach(btn => btn.addEventListener("click", () => setView(btn.dataset.view)));
+      document.querySelectorAll("[data-view-shortcut]").forEach(btn => btn.addEventListener("click", () => setView(btn.dataset.viewShortcut)));
+      document.getElementById("addSampleBtn").addEventListener("click", () => {
+        setView("catalog");
+        setTimeout(() => document.getElementById("plantSearch").focus(), 0);
+      });
+      document.getElementById("editLayoutBtn").addEventListener("click", toggleEditLayout);
+      document.getElementById("autoArrangeBtn").addEventListener("click", autoArrange);
+      document.getElementById("randomPlantBtn").addEventListener("click", () => openPlant(state.catalog[Math.floor(Math.random() * state.catalog.length)]));
+      document.getElementById("closeModal").addEventListener("click", () => document.getElementById("plantModal").classList.add("hidden"));
+      document.getElementById("plantModal").addEventListener("click", event => {
+        if (event.target.id === "plantModal") document.getElementById("plantModal").classList.add("hidden");
+      });
+      document.getElementById("plantSearch").addEventListener("input", renderCatalog);
+      document.getElementById("plantTypeFilter").addEventListener("change", renderCatalog);
+      document.getElementById("sunFilter").addEventListener("change", renderCatalog);
+      document.getElementById("authForm").addEventListener("submit", handleAuth);
+      document.getElementById("loginTab").addEventListener("click", () => setAuthMode("login"));
+      document.getElementById("signupTab").addEventListener("click", () => setAuthMode("signup"));
+      document.getElementById("sendResetCode").addEventListener("click", sendResetCode);
+      document.getElementById("resetPasswordBtn").addEventListener("click", resetPassword);
+      document.getElementById("attachEmailBtn").addEventListener("click", attachEmail);
+      document.getElementById("changePasswordBtn").addEventListener("click", changePassword);
+      document.getElementById("sendChatMessage").addEventListener("click", sendChatMessage);
+      document.getElementById("chatMessageInput").addEventListener("keydown", event => {
+        if ((event.ctrlKey || event.metaKey) && event.key === "Enter") sendChatMessage();
+      });
+      document.getElementById("refreshChat").addEventListener("click", refreshChat);
+      document.getElementById("refreshAdminUsers").addEventListener("click", refreshAdminData);
+      document.getElementById("adminPlantSearch").addEventListener("input", renderAdminPhotoManager);
+      document.getElementById("logoutBtn").addEventListener("click", () => {
+        state.user = null;
+        localStorage.removeItem("yardatlas_user");
+        render();
+      });
+      document.getElementById("runScanBtn").addEventListener("click", runScan);
+      document.getElementById("resetScanBtn").addEventListener("click", () => {
+        state.scanCount = 0;
+        localStorage.setItem("yardatlas_scans", "0");
+        render();
+      });
+      document.getElementById("exportBtn").addEventListener("click", () => {
+        const payload = {
+          exportedAt: new Date().toISOString(),
+          currentUser: state.user ? { email: state.user.email, username: state.user.username, plan: state.user.plan, role: state.user.role } : null,
+          users: Object.values(loadUsers()).map(user => ({ email: user.email, username: user.username, plan: user.plan, role: user.role })),
+          scanCount: state.scanCount,
+          mappedPlants: state.mapped.map(p => ({ id: p.id, name: p.name, x: p.x, y: p.y })),
+          catalogCount: state.catalog.length
+        };
+        navigator.clipboard?.writeText(JSON.stringify(payload, null, 2));
+        alert("관리 데이터 JSON을 클립보드에 복사했습니다.");
+      });
+      document.getElementById("fileInput").addEventListener("change", event => {
+        const file = event.target.files[0];
+        if (!file) return;
+        const img = document.getElementById("previewImage");
+        img.src = URL.createObjectURL(file);
+        img.classList.remove("hidden");
+        document.getElementById("dropCopy").classList.add("hidden");
+      });
+      window.addEventListener("resize", () => {
+        detectDevice();
+        renderDevice();
+        renderIcons();
+      });
+      window.yardatlas_chat_poll = setInterval(() => {
+        if (state.user && state.view === "chat") refreshChat();
+      }, 15000);
+
+      if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+        navigator.serviceWorker.register("sw.js").catch(() => {});
+      }
+
+      render();
+    }
+
+    init();
+  </script>
+</body>
+</html>
+
