@@ -286,7 +286,7 @@
       position: relative;
       min-height: 560px;
       border-radius: 8px;
-      overflow: hidden;
+      overflow: auto;
       background:
         linear-gradient(90deg, rgba(255,255,255,.38) 1px, transparent 1px) 0 0/24px 24px,
         linear-gradient(rgba(255,255,255,.38) 1px, transparent 1px) 0 0/24px 24px,
@@ -294,8 +294,31 @@
       border: 1px solid #c8d4c5;
     }
 
+    .yard-map-content {
+      position: relative;
+      width: 100%;
+      min-height: inherit;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,.38) 1px, transparent 1px) 0 0/24px 24px,
+        linear-gradient(rgba(255,255,255,.38) 1px, transparent 1px) 0 0/24px 24px,
+        transparent;
+      transform-origin: 0 0;
+    }
+
     .yard-stage.has-yard-image {
       background: #eef3ed;
+    }
+
+    .yard-stage.has-yard-image .yard-map-content {
+      background: #f8faf6;
+    }
+
+    .zoom-value {
+      min-width: 50px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
     }
 
     .yard-plan-image {
@@ -1226,20 +1249,26 @@
             <div class="panel-head">
               <h2>마당 지도</h2>
               <div class="actions">
+                <button class="btn" id="zoomOutBtn" title="축소"><span class="icon" data-icon="minus"></span></button>
+                <span class="zoom-value" id="yardZoomLabel">100%</span>
+                <button class="btn" id="zoomInBtn" title="확대"><span class="icon" data-icon="plus"></span></button>
+                <button class="btn" id="zoomResetBtn" title="확대 초기화"><span class="icon" data-icon="rotate-ccw"></span></button>
                 <button class="btn" id="editLayoutBtn"><span class="icon" data-icon="move"></span>배치 수정</button>
                 <button class="btn" id="autoArrangeBtn"><span class="icon" data-icon="wand-sparkles"></span>자동 배치</button>
               </div>
             </div>
             <div class="panel-body">
               <div class="yard-stage" id="yardStage" aria-label="주택 마당 도면">
-                <img id="yardPlanImage" class="yard-plan-image hidden" alt="업로드한 마당 도면">
-                <div class="blueprint"></div>
-                <div class="bed one"></div>
-                <div class="bed two"></div>
-                <div class="bed three"></div>
-                <div class="house" title="주택"></div>
-                <div class="patio" title="데크"></div>
-                <div class="path" title="진입로"></div>
+                <div class="yard-map-content" id="yardMapContent">
+                  <img id="yardPlanImage" class="yard-plan-image hidden" alt="업로드한 마당 도면">
+                  <div class="blueprint"></div>
+                  <div class="bed one"></div>
+                  <div class="bed two"></div>
+                  <div class="bed three"></div>
+                  <div class="house" title="주택"></div>
+                  <div class="patio" title="데크"></div>
+                  <div class="path" title="진입로"></div>
+                </div>
               </div>
             </div>
           </section>
@@ -1496,7 +1525,7 @@
           </div>
           <div class="panel-body guide-layout">
             <video class="guide-video" controls preload="metadata" poster="yardatlas-icon.svg">
-              <source src="assets/admin-upload-guide.webm?v=25" type="video/webm">
+              <source src="assets/admin-upload-guide.webm?v=26" type="video/webm">
             </video>
             <div class="guide-checklist">
               <div class="detail"><h3>사진 준비</h3><p>식물은 전체, 잎, 꽃, 씨·열매 사진을 따로 준비하면 도감 상세 화면이 안정적으로 보입니다.</p></div>
@@ -1636,6 +1665,7 @@
       scanCount: Number(localStorage.getItem("yardatlas_scans") || "0"),
       resetCodes: JSON.parse(localStorage.getItem("yardatlas_reset_codes") || "{}"),
       yardImage: localStorage.getItem("yardatlas_yard_image") || "",
+      yardZoom: Number(localStorage.getItem("yardatlas_yard_zoom") || "1"),
       device: "desktop",
       serverStatus: { users: 0, resetCodes: 0, messages: 0 },
       adminUsers: [],
@@ -1769,7 +1799,7 @@
     const sunOptions = ["양지", "반양지", "음지"];
     const waterOptions = ["주 1회 깊게", "주 2회 적당히", "흙이 마르면", "여름에는 2~3일 간격", "건조하게 관리"];
     const soilOptions = ["배수 좋은 흙", "보습력 있는 흙", "약산성 토양", "모래 섞인 흙", "일반 정원토"];
-    const PHOTO_VERSION = "v25";
+    const PHOTO_VERSION = "v26";
 
     function makeCatalog() {
       const list = [];
@@ -2400,11 +2430,36 @@
       if (!state.yardImage) image.removeAttribute("src");
     }
 
+    function clampYardZoom(value) {
+      return Math.max(0.75, Math.min(3, Number(value) || 1));
+    }
+
+    function renderYardZoom() {
+      const stage = document.getElementById("yardStage");
+      const content = document.getElementById("yardMapContent");
+      const label = document.getElementById("yardZoomLabel");
+      if (!stage || !content) return;
+      const zoom = clampYardZoom(state.yardZoom);
+      state.yardZoom = zoom;
+      const baseHeight = state.device === "mobile" ? 480 : 560;
+      content.style.width = `${zoom * 100}%`;
+      content.style.minHeight = `${Math.round(baseHeight * zoom)}px`;
+      if (label) label.textContent = `${Math.round(zoom * 100)}%`;
+    }
+
+    function setYardZoom(nextZoom) {
+      state.yardZoom = clampYardZoom(nextZoom);
+      localStorage.setItem("yardatlas_yard_zoom", String(state.yardZoom));
+      renderMappedPlants();
+    }
+
     function renderMappedPlants() {
       const stage = document.getElementById("yardStage");
+      const content = document.getElementById("yardMapContent");
       stage.classList.toggle("editing-layout", state.editMode);
       renderYardPlan();
-      stage.querySelectorAll(".plant-dot,.plant-label,.plant-delete").forEach(el => el.remove());
+      renderYardZoom();
+      content.querySelectorAll(".plant-dot,.plant-label,.plant-delete").forEach(el => el.remove());
       state.mapped.forEach(plant => {
         const dot = document.createElement("button");
         dot.className = `plant-dot ${plant.type === "tree" ? "tree" : ""}`;
@@ -2414,7 +2469,7 @@
         dot.innerHTML = plant.type === "tree" ? icon("tree-pine") : icon("sprout");
         dot.addEventListener("click", () => { if (!state.editMode) openPlant(plant); });
         dot.addEventListener("pointerdown", event => startPlantDrag(event, plant));
-        stage.appendChild(dot);
+        content.appendChild(dot);
 
         const label = document.createElement("button");
         label.className = "plant-label";
@@ -2423,7 +2478,7 @@
         label.innerHTML = `${plant.name}<small>${plant.water}</small>`;
         label.addEventListener("click", () => { if (!state.editMode) openPlant(plant); });
         label.addEventListener("pointerdown", event => startPlantDrag(event, plant));
-        stage.appendChild(label);
+        content.appendChild(label);
 
         if (state.editMode) {
           const remove = document.createElement("button");
@@ -2442,7 +2497,7 @@
             event.stopPropagation();
             deleteMappedPlant(plant);
           });
-          stage.appendChild(remove);
+          content.appendChild(remove);
         }
       });
       renderIcons();
@@ -2479,9 +2534,9 @@
       if (!state.editMode) return;
       event.preventDefault();
       event.stopPropagation();
-      const stage = document.getElementById("yardStage");
+      const content = document.getElementById("yardMapContent");
       const move = pointerEvent => {
-        const rect = stage.getBoundingClientRect();
+        const rect = content.getBoundingClientRect();
         plant.x = Math.max(3, Math.min(97, ((pointerEvent.clientX - rect.left) / rect.width) * 100));
         plant.y = Math.max(5, Math.min(95, ((pointerEvent.clientY - rect.top) / rect.height) * 100));
         renderMappedPlants();
@@ -2841,6 +2896,9 @@
       });
       document.getElementById("editLayoutBtn").addEventListener("click", toggleEditLayout);
       document.getElementById("autoArrangeBtn").addEventListener("click", autoArrange);
+      document.getElementById("zoomOutBtn").addEventListener("click", () => setYardZoom(state.yardZoom - 0.25));
+      document.getElementById("zoomInBtn").addEventListener("click", () => setYardZoom(state.yardZoom + 0.25));
+      document.getElementById("zoomResetBtn").addEventListener("click", () => setYardZoom(1));
       document.getElementById("randomPlantBtn").addEventListener("click", () => openPlant(state.catalog[Math.floor(Math.random() * state.catalog.length)]));
       document.getElementById("closeModal").addEventListener("click", () => document.getElementById("plantModal").classList.add("hidden"));
       document.getElementById("plantModal").addEventListener("click", event => {
