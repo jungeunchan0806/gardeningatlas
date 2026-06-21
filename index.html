@@ -294,11 +294,34 @@
       border: 1px solid #c8d4c5;
     }
 
+    .yard-stage.has-yard-image {
+      background: #eef3ed;
+    }
+
+    .yard-plan-image {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #f8faf6;
+      z-index: 0;
+    }
+
+    .yard-stage.has-yard-image .blueprint,
+    .yard-stage.has-yard-image .bed,
+    .yard-stage.has-yard-image .house,
+    .yard-stage.has-yard-image .patio,
+    .yard-stage.has-yard-image .path {
+      display: none;
+    }
+
     .blueprint {
       position: absolute;
       inset: 28px;
       border: 2px solid #9aae98;
       background: rgba(255,255,255,0.3);
+      z-index: 1;
     }
 
     .house {
@@ -310,6 +333,7 @@
       background: #f7f2e7;
       border: 3px solid #66716a;
       box-shadow: inset 0 0 0 12px rgba(90,96,91,0.08);
+      z-index: 1;
     }
 
     .house::before,
@@ -341,6 +365,7 @@
       height: 12%;
       border: 2px dashed #9e8f75;
       background: rgba(238, 222, 187, 0.65);
+      z-index: 1;
     }
 
     .path {
@@ -351,6 +376,7 @@
       height: 23%;
       background: repeating-linear-gradient(180deg, #b7a487 0 14px, #c8b99e 14px 26px);
       border: 1px solid #9e8f75;
+      z-index: 1;
     }
 
     .bed {
@@ -358,6 +384,7 @@
       border-radius: 24px;
       background: rgba(94, 125, 77, .18);
       border: 1px solid rgba(50,88,52,.28);
+      z-index: 1;
     }
 
     .bed.one {
@@ -393,6 +420,7 @@
       color: #fff;
       border: 3px solid #fff;
       box-shadow: 0 8px 20px rgba(20, 51, 32, .18);
+      z-index: 3;
     }
 
     .editing-layout .plant-dot,
@@ -428,6 +456,7 @@
       font-weight: 800;
       text-align: center;
       white-space: normal;
+      z-index: 4;
     }
 
     .plant-label small {
@@ -436,6 +465,21 @@
       color: var(--muted);
       font-weight: 600;
       font-size: 11px;
+    }
+
+    .plant-delete {
+      position: absolute;
+      transform: translate(8px, -44px);
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      border: 2px solid #fff;
+      background: #b33b2e;
+      color: #fff;
+      box-shadow: 0 8px 18px rgba(85, 25, 20, .22);
+      z-index: 5;
     }
 
     .stats {
@@ -1188,6 +1232,7 @@
             </div>
             <div class="panel-body">
               <div class="yard-stage" id="yardStage" aria-label="주택 마당 도면">
+                <img id="yardPlanImage" class="yard-plan-image hidden" alt="업로드한 마당 도면">
                 <div class="blueprint"></div>
                 <div class="bed one"></div>
                 <div class="bed two"></div>
@@ -1451,7 +1496,7 @@
           </div>
           <div class="panel-body guide-layout">
             <video class="guide-video" controls preload="metadata" poster="yardatlas-icon.svg">
-              <source src="assets/admin-upload-guide.webm?v=24" type="video/webm">
+              <source src="assets/admin-upload-guide.webm?v=25" type="video/webm">
             </video>
             <div class="guide-checklist">
               <div class="detail"><h3>사진 준비</h3><p>식물은 전체, 잎, 꽃, 씨·열매 사진을 따로 준비하면 도감 상세 화면이 안정적으로 보입니다.</p></div>
@@ -1590,6 +1635,7 @@
       catalog: [],
       scanCount: Number(localStorage.getItem("yardatlas_scans") || "0"),
       resetCodes: JSON.parse(localStorage.getItem("yardatlas_reset_codes") || "{}"),
+      yardImage: localStorage.getItem("yardatlas_yard_image") || "",
       device: "desktop",
       serverStatus: { users: 0, resetCodes: 0, messages: 0 },
       adminUsers: [],
@@ -1723,7 +1769,7 @@
     const sunOptions = ["양지", "반양지", "음지"];
     const waterOptions = ["주 1회 깊게", "주 2회 적당히", "흙이 마르면", "여름에는 2~3일 간격", "건조하게 관리"];
     const soilOptions = ["배수 좋은 흙", "보습력 있는 흙", "약산성 토양", "모래 섞인 흙", "일반 정원토"];
-    const PHOTO_VERSION = "v23";
+    const PHOTO_VERSION = "v25";
 
     function makeCatalog() {
       const list = [];
@@ -2117,6 +2163,21 @@
       });
     }
 
+    async function applyYardPlanFile(file) {
+      const result = document.getElementById("scanResult");
+      if (!file) return;
+      try {
+        if (result) result.textContent = "도면을 마당 지도에 적용하는 중입니다...";
+        const dataUrl = await fileToCompressedDataUrl(file);
+        state.yardImage = dataUrl;
+        localStorage.setItem("yardatlas_yard_image", dataUrl);
+        renderMappedPlants();
+        if (result) result.textContent = "도면이 대시보드 마당지도에 적용되었습니다. 배치 수정에서 식물을 옮기거나 지울 수 있습니다.";
+      } catch (error) {
+        if (result) result.textContent = error.message || "도면을 적용하지 못했습니다.";
+      }
+    }
+
     async function uploadAdminPlantPhoto(plant, part, file) {
       const result = document.getElementById("adminPhotoResult");
       if (!state.user || state.user.role !== "admin") return;
@@ -2329,10 +2390,21 @@
       root.innerHTML = tasks.map(p => `<div class="detail"><h3>${p.name}</h3><p>${p.water}. 이번 계절 관리: ${p.seasons.summer}</p></div>`).join("");
     }
 
+    function renderYardPlan() {
+      const stage = document.getElementById("yardStage");
+      const image = document.getElementById("yardPlanImage");
+      if (!stage || !image) return;
+      stage.classList.toggle("has-yard-image", Boolean(state.yardImage));
+      image.classList.toggle("hidden", !state.yardImage);
+      if (state.yardImage && image.src !== state.yardImage) image.src = state.yardImage;
+      if (!state.yardImage) image.removeAttribute("src");
+    }
+
     function renderMappedPlants() {
       const stage = document.getElementById("yardStage");
       stage.classList.toggle("editing-layout", state.editMode);
-      stage.querySelectorAll(".plant-dot,.plant-label").forEach(el => el.remove());
+      renderYardPlan();
+      stage.querySelectorAll(".plant-dot,.plant-label,.plant-delete").forEach(el => el.remove());
       state.mapped.forEach(plant => {
         const dot = document.createElement("button");
         dot.className = `plant-dot ${plant.type === "tree" ? "tree" : ""}`;
@@ -2352,8 +2424,36 @@
         label.addEventListener("click", () => { if (!state.editMode) openPlant(plant); });
         label.addEventListener("pointerdown", event => startPlantDrag(event, plant));
         stage.appendChild(label);
+
+        if (state.editMode) {
+          const remove = document.createElement("button");
+          remove.className = "plant-delete";
+          remove.type = "button";
+          remove.style.left = `${plant.x}%`;
+          remove.style.top = `${plant.y}%`;
+          remove.title = `${plant.name} 삭제`;
+          remove.innerHTML = icon("trash-2");
+          remove.addEventListener("pointerdown", event => {
+            event.preventDefault();
+            event.stopPropagation();
+          });
+          remove.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            deleteMappedPlant(plant);
+          });
+          stage.appendChild(remove);
+        }
       });
       renderIcons();
+    }
+
+    function deleteMappedPlant(plant) {
+      const ok = confirm(`${plant.name}을(를) 마당 지도에서 지울까요?`);
+      if (!ok) return;
+      state.mapped = state.mapped.filter(item => item !== plant);
+      saveMappedPlants();
+      render();
     }
 
     function saveMappedPlants() {
@@ -2793,13 +2893,14 @@
         event.stopPropagation();
         fileInput.click();
       });
-      fileInput.addEventListener("change", event => {
+      fileInput.addEventListener("change", async event => {
         const file = event.target.files[0];
         if (!file) return;
         const img = document.getElementById("previewImage");
         img.src = URL.createObjectURL(file);
         img.classList.remove("hidden");
         document.getElementById("dropCopy").classList.add("hidden");
+        await applyYardPlanFile(file);
       });
       window.addEventListener("resize", () => {
         detectDevice();
