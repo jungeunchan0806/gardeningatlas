@@ -357,8 +357,23 @@ function sendJson(res, status, data) {
   res.end(JSON.stringify(data));
 }
 
+function devicePathFromUserAgent(userAgent) {
+  const ua = String(userAgent || "").toLowerCase();
+  const isMobile = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile/.test(ua);
+  return isMobile ? "/mobile" : "/pc";
+}
+
 function serveStatic(req, res) {
   const cleanPath = decodeURIComponent(req.url.split("?")[0]);
+  if (cleanPath === "/") {
+    const query = req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "";
+    res.writeHead(302, {
+      Location: `${devicePathFromUserAgent(req.headers["user-agent"])}${query}`,
+      "Cache-Control": "no-store"
+    });
+    res.end();
+    return;
+  }
   const requested = cleanPath === "/" || cleanPath === "/mobile" || cleanPath === "/pc" ? "index.html" : cleanPath.slice(1);
   const filePath = path.resolve(root, requested);
 

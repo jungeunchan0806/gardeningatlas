@@ -10,6 +10,17 @@
   <meta name="mobile-web-app-capable" content="yes">
   <link rel="manifest" href="manifest.webmanifest">
   <title>gardeningatlas - 주택 마당 식물 지도</title>
+  <script>
+    (() => {
+      if (location.pathname !== "/") return;
+      const mobileQuery = new URLSearchParams(location.search).has("mobile");
+      const pcQuery = new URLSearchParams(location.search).has("pc");
+      const mobileByWidth = matchMedia("(max-width: 680px)").matches;
+      const mobileByPointer = matchMedia("(pointer: coarse)").matches;
+      const target = pcQuery ? "/pc" : (mobileQuery || mobileByWidth || mobileByPointer ? "/mobile" : "/pc");
+      location.replace(`${target}${location.search}${location.hash}`);
+    })();
+  </script>
   <style>
     :root {
       color-scheme: light;
