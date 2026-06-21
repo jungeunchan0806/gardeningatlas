@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = "gardeningatlas-v23";
+const CACHE_NAME = "gardeningatlas-v24";
 const ASSETS = [
   "/",
   "/mobile",
