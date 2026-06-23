@@ -4,11 +4,11 @@ gardeningatlas is already a PWA through `manifest.webmanifest` and `sw.js`.
 
 ## Current URLs
 
-- Mobile UI: https://992e5e47dec8ac.lhr.life/mobile
-- PC UI: https://992e5e47dec8ac.lhr.life/pc
-- Privacy policy: https://992e5e47dec8ac.lhr.life/privacy.html
-- Terms: https://992e5e47dec8ac.lhr.life/terms.html
-- PWA manifest: https://992e5e47dec8ac.lhr.life/manifest.webmanifest
+- Mobile UI: https://gardeningatlas.com/mobile
+- PC UI: https://gardeningatlas.com/pc
+- Privacy policy: https://gardeningatlas.com/privacy.html
+- Terms: https://gardeningatlas.com/terms.html
+- PWA manifest: https://gardeningatlas.com/manifest.webmanifest
 
 ## Play Store
 
@@ -25,7 +25,7 @@ Prepared local store assets:
 - `store-assets/phone-mobile-ui.png`
 - `store-assets/pc-ui.png`
 
-The current `lhr.life` URL is a temporary tunnel for testing. For review, use a stable HTTPS domain when possible.
+The app now has a stable HTTPS domain for review: https://gardeningatlas.com.
 
 ## App Store
 

@@ -23,14 +23,14 @@ http://172.30.1.75:8765/pc
 http://172.30.1.75:8765/mobile
 ```
 
-## Current Temporary Public URLs
+## Current Public URLs
 
 ```text
-PC UI: https://raw-geographic-operational-planet.trycloudflare.com/pc?v=23
-Mobile UI: https://raw-geographic-operational-planet.trycloudflare.com/mobile?v=23
-Privacy policy: https://raw-geographic-operational-planet.trycloudflare.com/privacy.html
-Terms: https://raw-geographic-operational-planet.trycloudflare.com/terms.html
-Manifest: https://raw-geographic-operational-planet.trycloudflare.com/manifest.webmanifest
+PC UI: https://gardeningatlas.com/pc
+Mobile UI: https://gardeningatlas.com/mobile
+Privacy policy: https://gardeningatlas.com/privacy.html
+Terms: https://gardeningatlas.com/terms.html
+Manifest: https://gardeningatlas.com/manifest.webmanifest
 ```
 
 ## Public Internet Deployment
@@ -44,7 +44,7 @@ The app is ready for a fixed-domain Node.js host. It includes:
 Set:
 
 ```text
-PUBLIC_BASE_URL=https://your-domain.example
+PUBLIC_BASE_URL=https://gardeningatlas.com
 HOST=0.0.0.0
 DATA_DIR=/var/data
 ```
@@ -72,9 +72,22 @@ The app now has payment order and confirmation APIs:
 
 - `POST /api/payment/create`
 - `POST /api/payment/confirm`
+- `POST /api/payment/webhook`
 
 Without Toss keys, it uses a mock development payment so the flow can be tested.
 With `TOSS_CLIENT_KEY` and `TOSS_SECRET_KEY`, the frontend can open Toss Payments and the server can confirm payment with Toss.
+Set `TOSS_WEBHOOK_SECRET` and configure the same secret in the Toss webhook endpoint so cancellation and refund events are not accepted anonymously.
+
+## Email
+
+Password reset email is sent through Resend when these environment variables are set:
+
+```text
+RESEND_API_KEY=re_...
+EMAIL_FROM=gardeningatlas <noreply@gardeningatlas.com>
+```
+
+Without `RESEND_API_KEY`, reset codes stay in development mode and are returned to the browser for testing.
 
 Official docs used:
 
@@ -83,9 +96,6 @@ Official docs used:
 
 ## Before Real Launch
 
-- Replace SHA-256 password storage with bcrypt/argon2.
-- Move JSON files to a real DB such as PostgreSQL.
-- Add email sending for password reset codes.
+- Move JSON files to a real DB such as PostgreSQL before heavy traffic.
 - Add privacy policy and terms pages.
-- Add HTTPS and secure cookies/session tokens.
-- Add payment webhook handling for cancellations, refunds, and subscription renewal failures.
+- Add full subscription renewal scheduling.

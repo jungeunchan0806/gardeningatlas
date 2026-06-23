@@ -1671,6 +1671,7 @@
       view: "dashboard",
       authMode: "login",
       user: JSON.parse(localStorage.getItem("yardatlas_user") || "null"),
+      authToken: localStorage.getItem("yardatlas_auth_token") || "",
       mapped: [],
       catalog: [],
       scanCount: Number(localStorage.getItem("yardatlas_scans") || "0"),
@@ -1686,7 +1687,8 @@
       adminPhotoPlantId: null,
       chatMessages: [],
       loadingAdmin: false,
-      editMode: false
+      editMode: false,
+      saveTimer: null
     };
 
     const essentialPlants = [
@@ -1978,14 +1980,25 @@
     }
 
     async function api(path, payload) {
+      const headers = payload ? { "Content-Type": "application/json" } : {};
+      if (state.authToken) headers.Authorization = `Bearer ${state.authToken}`;
       const response = await fetch(path, {
         method: payload ? "POST" : "GET",
-        headers: payload ? { "Content-Type": "application/json" } : {},
+        headers,
         body: payload ? JSON.stringify(payload) : undefined
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "요청에 실패했습니다.");
       return data;
+    }
+
+    function rememberAuth(data) {
+      state.user = data.user;
+      if (data.authToken) {
+        state.authToken = data.authToken;
+        localStorage.setItem("yardatlas_auth_token", data.authToken);
+      }
+      localStorage.setItem("yardatlas_user", JSON.stringify(state.user));
     }
 
     async function refreshServerStatus() {
@@ -2063,7 +2076,7 @@
         <div class="detail"><h3>로그인 상태</h3><p>${state.user ? `${state.user.email}${state.user.username ? ` · 아이디 ${state.user.username}` : ""} 로그인 중` : "아직 로그인하지 않았습니다."}</p></div>
         <div class="detail"><h3>현재 요금제</h3><p>${plan.name} · 도면 스캔 ${plan.scans === Infinity ? "무제한" : `월 ${plan.scans}회`} · 마당 ${plan.yards === Infinity ? "무제한" : `${plan.yards}개`}</p></div>
         <div class="detail"><h3>권한</h3><p>${state.user?.role === "admin" ? "관리자 권한. 모든 기능과 서버 관리 화면을 사용할 수 있습니다." : "일반 사용자 권한입니다."}</p></div>
-        <div class="detail"><h3>프로토타입 안내</h3><p>회원 정보는 이 브라우저의 localStorage에만 저장됩니다. 실제 서비스에서는 서버 인증과 결제 연동이 필요합니다.</p></div>
+        <div class="detail"><h3>저장 방식</h3><p>로그인하면 마당 지도, 도면, 식물 위치가 서버에 저장됩니다. 이 브라우저에는 빠른 복구용 사본만 남깁니다.</p></div>
       `;
     }
 
@@ -2212,6 +2225,7 @@
         const dataUrl = await fileToCompressedDataUrl(file);
         state.yardImage = dataUrl;
         localStorage.setItem("yardatlas_yard_image", dataUrl);
+        scheduleYardSave();
         renderMappedPlants();
         if (result) result.textContent = "도면이 대시보드 마당지도에 적용되었습니다. 배치 수정에서 식물을 옮기거나 지울 수 있습니다.";
       } catch (error) {
@@ -2461,6 +2475,7 @@
     function setYardZoom(nextZoom) {
       state.yardZoom = clampYardZoom(nextZoom);
       localStorage.setItem("yardatlas_yard_zoom", String(state.yardZoom));
+      scheduleYardSave();
       renderMappedPlants();
     }
 
@@ -2528,6 +2543,7 @@
         x: plant.x,
         y: plant.y
       }))));
+      scheduleYardSave();
     }
 
     function loadMappedPlants() {
@@ -2539,6 +2555,60 @@
           return plant ? { ...plant, x: item.x, y: item.y } : null;
         })
         .filter(Boolean);
+    }
+
+    function yardPayload() {
+      return {
+        id: "default",
+        name: "내 마당",
+        yardImage: state.yardImage,
+        yardZoom: state.yardZoom,
+        scanCount: state.scanCount,
+        mapped: state.mapped.map(plant => ({ id: plant.id, x: plant.x, y: plant.y }))
+      };
+    }
+
+    function applyYardPayload(yard) {
+      if (!yard) return false;
+      state.yardImage = yard.yardImage || "";
+      state.yardZoom = clampYardZoom(yard.yardZoom || 1);
+      state.scanCount = Number(yard.scanCount || 0);
+      state.mapped = Array.isArray(yard.mapped)
+        ? yard.mapped.map(item => {
+          const plant = state.catalog.find(candidate => candidate.id === Number(item.id));
+          return plant ? { ...plant, x: Number(item.x) || 20, y: Number(item.y) || 20 } : null;
+        }).filter(Boolean)
+        : [];
+      localStorage.setItem("yardatlas_yard_image", state.yardImage);
+      localStorage.setItem("yardatlas_yard_zoom", String(state.yardZoom));
+      localStorage.setItem("yardatlas_scans", String(state.scanCount));
+      localStorage.setItem("yardatlas_mapped", JSON.stringify(state.mapped.map(plant => ({ id: plant.id, x: plant.x, y: plant.y }))));
+      return true;
+    }
+
+    function scheduleYardSave() {
+      if (!state.user || !state.authToken) return;
+      clearTimeout(state.saveTimer);
+      state.saveTimer = setTimeout(() => {
+        api("/api/yard", yardPayload()).catch(error => {
+          console.warn("yard save failed", error);
+        });
+      }, 700);
+    }
+
+    async function loadServerYard() {
+      if (!state.user || !state.authToken) return false;
+      try {
+        const data = await api("/api/yard");
+        if (data.yard && applyYardPayload(data.yard)) {
+          render();
+          return true;
+        }
+        await api("/api/yard", yardPayload());
+      } catch (error) {
+        console.warn("yard load failed", error);
+      }
+      return false;
     }
 
     function startPlantDrag(event, plant) {
@@ -2667,7 +2737,7 @@
     async function choosePlan(planKey) {
       if (!state.user) {
         setView("account");
-        document.getElementById("authMessage").textContent = "???? ????? ?? ???? ?? ???? ?????.";
+        document.getElementById("authMessage").textContent = "로그인 후 요금제를 선택할 수 있습니다.";
         return;
       }
       if (planKey === "free") {
@@ -2682,7 +2752,7 @@
         if (order.provider === "toss" && order.tossClientKey) {
           await loadTossSdk();
           const tossPayments = TossPayments(order.tossClientKey);
-          tossPayments.requestPayment("??", {
+          tossPayments.requestPayment("카드", {
             amount: order.amount,
             orderId: order.orderId,
             orderName: order.orderName,
@@ -2693,12 +2763,12 @@
           });
           return;
         }
-        const data = await api("/api/payment/confirm", { orderId: order.orderId, mock: true });
+        const data = await api("/api/payment/confirm", { orderId: order.orderId, amount: order.amount, mock: true });
         state.user = data.user;
         localStorage.setItem("yardatlas_user", JSON.stringify(state.user));
-        alert(order.orderName + " ??? ??? ???????. ?? ??? Toss ?? ??? ?????.");
+        alert(order.orderName + " 결제가 개발 모드로 처리되었습니다. 실제 결제는 Toss 키가 필요합니다.");
       } catch (error) {
-        alert(error.message || "?? ?? ? ??? ??????.");
+        alert(error.message || "결제를 처리할 수 없습니다.");
       }
       render();
     }
@@ -2780,24 +2850,23 @@
         }
         try {
           const data = await api("/api/signup", { email, username, password, name: name || username });
-          state.user = data.user;
+          rememberAuth(data);
         } catch (error) {
           document.getElementById("authMessage").textContent = error.message;
           return;
         }
-        localStorage.setItem("yardatlas_user", JSON.stringify(state.user));
         document.getElementById("authMessage").textContent = "회원가입 완료. 무료 요금제로 시작합니다.";
       } else {
         try {
           const data = await api("/api/login", { loginId, password });
-          state.user = data.user;
+          rememberAuth(data);
         } catch (error) {
           document.getElementById("authMessage").textContent = error.message;
           return;
         }
-        localStorage.setItem("yardatlas_user", JSON.stringify(state.user));
         document.getElementById("authMessage").textContent = "로그인되었습니다.";
       }
+      await loadServerYard();
       render();
       await refreshServerStatus();
       render();
@@ -2817,7 +2886,9 @@
       const loginId = document.getElementById("resetLoginInput").value.trim();
       try {
         const data = await api("/api/reset/request", { loginId });
-        document.getElementById("resetMessage").textContent = `개발용 인증번호: ${data.devCode}. 실제 서비스에서는 ${data.email} 주소로 이메일을 발송합니다.`;
+        document.getElementById("resetMessage").textContent = data.emailSent
+          ? `${data.email} 주소로 인증번호를 보냈습니다.`
+          : `개발용 인증번호: ${data.devCode}. RESEND_API_KEY를 넣으면 ${data.email} 주소로 이메일이 발송됩니다.`;
       } catch (error) {
         document.getElementById("resetMessage").textContent = error.message;
       }
@@ -2861,6 +2932,7 @@
       }
       state.scanCount++;
       localStorage.setItem("yardatlas_scans", String(state.scanCount));
+      scheduleYardSave();
       const type = document.getElementById("scanType").selectedOptions[0].textContent;
       document.getElementById("scanResult").textContent = `${type} 분석 완료: 집 외곽, 데크, 진입로, 화단 후보 3곳, 나무 후보 5곳을 찾은 것으로 시뮬레이션했습니다.`;
       if (!state.mapped.length) addSamplePlants();
@@ -2879,14 +2951,18 @@
         state.user = data.user;
         localStorage.setItem("yardatlas_user", JSON.stringify(state.user));
         history.replaceState({}, "", location.pathname);
-        alert("??? ???? ???? ???????.");
+        alert("결제가 확인되어 요금제가 적용되었습니다.");
       } catch (error) {
-        alert(error.message || "?? ??? ??????.");
+        alert(error.message || "결제 확인에 실패했습니다.");
       }
     }
 
     function init() {
       detectDevice();
+      if (state.user && !state.authToken) {
+        state.user = null;
+        localStorage.removeItem("yardatlas_user");
+      }
       state.catalog = makeCatalog();
       state.mapped = loadMappedPlants() || [
         { ...state.catalog[0], x: 18, y: 18 },
@@ -2896,8 +2972,8 @@
         { ...state.catalog[724], x: 84, y: 55 }
       ];
 
-      seedAdminAccount();
       refreshServerStatus().then(render);
+      loadServerYard().then(render);
       handlePaymentReturn();
       document.querySelectorAll("[data-view]").forEach(btn => btn.addEventListener("click", () => setView(btn.dataset.view)));
       document.querySelectorAll("[data-view-shortcut]").forEach(btn => btn.addEventListener("click", () => setView(btn.dataset.viewShortcut)));
@@ -2934,13 +3010,16 @@
       document.getElementById("adminPlantSearch").addEventListener("input", renderAdminPhotoManager);
       document.getElementById("logoutBtn").addEventListener("click", () => {
         state.user = null;
+        state.authToken = "";
         localStorage.removeItem("yardatlas_user");
+        localStorage.removeItem("yardatlas_auth_token");
         render();
       });
       document.getElementById("runScanBtn").addEventListener("click", runScan);
       document.getElementById("resetScanBtn").addEventListener("click", () => {
         state.scanCount = 0;
         localStorage.setItem("yardatlas_scans", "0");
+        scheduleYardSave();
         render();
       });
       document.getElementById("exportBtn").addEventListener("click", () => {

@@ -2,10 +2,12 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const bcrypt = require("bcryptjs");
 
 const root = __dirname;
 const dataDir = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(root, "data");
 const usersFile = path.join(dataDir, "users.json");
+const yardsFile = path.join(dataDir, "yards.json");
 const plantImageFile = path.join(dataDir, "plant-images.json");
 const paymentsFile = path.join(dataDir, "payments.json");
 
@@ -16,6 +18,9 @@ const host = process.env.HOST || "0.0.0.0";
 const publicBaseUrl = process.env.PUBLIC_BASE_URL || `http://localhost:${port}`;
 const tossClientKey = process.env.TOSS_CLIENT_KEY || "";
 const tossSecretKey = process.env.TOSS_SECRET_KEY || "";
+const tossWebhookSecret = process.env.TOSS_WEBHOOK_SECRET || "";
+const resendApiKey = process.env.RESEND_API_KEY || "";
+const emailFrom = process.env.EMAIL_FROM || "gardeningatlas <onboarding@resend.dev>";
 
 function loadEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return;
@@ -55,7 +60,10 @@ const types = {
 function ensureData() {
   fs.mkdirSync(dataDir, { recursive: true });
   if (!fs.existsSync(usersFile)) {
-    fs.writeFileSync(usersFile, JSON.stringify({ users: [], resetCodes: {}, messages: [] }, null, 2), "utf8");
+    fs.writeFileSync(usersFile, JSON.stringify({ users: [], resetCodes: {}, messages: [], sessions: [] }, null, 2), "utf8");
+  }
+  if (!fs.existsSync(yardsFile)) {
+    fs.writeFileSync(yardsFile, JSON.stringify({ yards: [] }, null, 2), "utf8");
   }
   if (!fs.existsSync(plantImageFile)) {
     fs.writeFileSync(plantImageFile, JSON.stringify({ images: {} }, null, 2), "utf8");
@@ -80,10 +88,10 @@ function ensureData() {
 
 function readDb() {
   try {
-    const parsed = JSON.parse(fs.readFileSync(usersFile, "utf8"));
-    return { users: parsed.users || [], resetCodes: parsed.resetCodes || {}, messages: parsed.messages || [] };
+    const parsed = JSON.parse(fs.readFileSync(usersFile, "utf8").replace(/^\uFEFF/, ""));
+    return { users: parsed.users || [], resetCodes: parsed.resetCodes || {}, messages: parsed.messages || [], sessions: parsed.sessions || [] };
   } catch {
-    return { users: [], resetCodes: {}, messages: [] };
+    return { users: [], resetCodes: {}, messages: [], sessions: [] };
   }
 }
 
@@ -93,7 +101,7 @@ function writeDb(db) {
 
 function readJsonFile(filePath, fallback) {
   try {
-    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+    return JSON.parse(fs.readFileSync(filePath, "utf8").replace(/^\uFEFF/, ""));
   } catch {
     return fallback;
   }
@@ -104,7 +112,25 @@ function writeJsonFile(filePath, payload) {
 }
 
 function hashPassword(password) {
+  return bcrypt.hashSync(String(password), 12);
+}
+
+function legacyHashPassword(password) {
   return crypto.createHash("sha256").update(String(password)).digest("hex");
+}
+
+function verifyPassword(user, password) {
+  const stored = String(user?.passwordHash || "");
+  if (!stored) return false;
+  if (stored.startsWith("$2a$") || stored.startsWith("$2b$") || stored.startsWith("$2y$")) {
+    return bcrypt.compareSync(String(password), stored);
+  }
+  const ok = stored === legacyHashPassword(password);
+  if (ok) {
+    user.passwordHash = hashPassword(password);
+    user.passwordUpgradedAt = new Date().toISOString();
+  }
+  return ok;
 }
 
 function publicUser(user) {
@@ -126,6 +152,96 @@ function findUser(db, loginId) {
     String(user.email || "").toLowerCase() === normalized ||
     String(user.username || "").toLowerCase() === normalized
   );
+}
+
+function ownerKey(user) {
+  return String(user?.email || user?.username || "").trim().toLowerCase();
+}
+
+function getBearerToken(req) {
+  const header = String(req.headers.authorization || "");
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1].trim() : "";
+}
+
+function createSession(db, user) {
+  const token = crypto.randomBytes(32).toString("hex");
+  db.sessions = (db.sessions || []).filter(session => session.expiresAt > Date.now());
+  db.sessions.push({
+    tokenHash: crypto.createHash("sha256").update(token).digest("hex"),
+    owner: ownerKey(user),
+    createdAt: new Date().toISOString(),
+    expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000
+  });
+  return token;
+}
+
+function authenticate(req, db, body = {}) {
+  const token = getBearerToken(req) || String(body.authToken || "");
+  if (token) {
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const session = (db.sessions || []).find(item => item.tokenHash === tokenHash && item.expiresAt > Date.now());
+    if (session) return findUser(db, session.owner);
+  }
+  return null;
+}
+
+function requireAdmin(req, db, body = {}) {
+  const user = authenticate(req, db, body);
+  return user?.role === "admin" ? user : null;
+}
+
+function readYards() {
+  return readJsonFile(yardsFile, { yards: [] });
+}
+
+function writeYards(payload) {
+  writeJsonFile(yardsFile, payload);
+}
+
+function normalizeYardPayload(body, user) {
+  const mapped = Array.isArray(body.mapped) ? body.mapped.slice(0, 500).map(item => ({
+    id: Number(item.id) || 0,
+    x: Math.max(0, Math.min(100, Number(item.x) || 0)),
+    y: Math.max(0, Math.min(100, Number(item.y) || 0))
+  })).filter(item => item.id > 0) : [];
+  const image = String(body.yardImage || body.image || "");
+  if (image && !/^data:image\/(?:png|jpe?g|webp);base64,/i.test(image)) {
+    throw new Error("지원하지 않는 도면 이미지 형식입니다.");
+  }
+  if (image.length > 6_000_000) {
+    throw new Error("도면 이미지가 너무 큽니다. 더 작은 이미지로 업로드해주세요.");
+  }
+  return {
+    id: String(body.id || "default"),
+    owner: ownerKey(user),
+    name: String(body.name || "내 마당").trim().slice(0, 80),
+    yardImage: image,
+    yardZoom: Math.max(0.75, Math.min(3, Number(body.yardZoom) || 1)),
+    scanCount: Math.max(0, Number(body.scanCount) || 0),
+    mapped,
+    updatedAt: new Date().toISOString()
+  };
+}
+
+async function sendResetEmail(to, code, user) {
+  if (!resendApiKey) return { sent: false, provider: "dev" };
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      from: emailFrom,
+      to,
+      subject: "gardeningatlas 비밀번호 재설정 인증번호",
+      text: `안녕하세요 ${user.name || user.username || ""}님.\n\ngardeningatlas 비밀번호 재설정 인증번호는 ${code} 입니다.\n이 코드는 10분 뒤 만료됩니다.\n\n요청한 적이 없다면 이 메일을 무시하세요.`
+    })
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.message || "이메일 발송에 실패했습니다.");
+  return { sent: true, provider: "resend", id: payload.id || "" };
 }
 
 function isAdminMessage(db, message) {
@@ -407,8 +523,10 @@ async function handleApi(req, res) {
       users: db.users.length,
       resetCodes: Object.keys(db.resetCodes).length,
       messages: db.messages.length,
+      yards: readYards().yards.length,
       payments: readJsonFile(paymentsFile, { orders: [] }).orders.length,
-      paymentProvider: tossClientKey && tossSecretKey ? "toss" : "mock"
+      paymentProvider: tossClientKey && tossSecretKey ? "toss" : "mock",
+      emailProvider: resendApiKey ? "resend" : "dev"
     });
     return;
   }
@@ -458,7 +576,7 @@ async function handleApi(req, res) {
 
   if (route === "/api/admin/plant-photos" && req.method === "POST") {
     const body = await readBody(req);
-    const admin = findUser(db, body.adminLoginId);
+    const admin = requireAdmin(req, db, body);
     if (!admin || admin.role !== "admin") {
       sendJson(res, 403, { error: "관리자 권한이 필요합니다." });
       return;
@@ -470,7 +588,7 @@ async function handleApi(req, res) {
 
   if (route === "/api/admin/plant-photo" && req.method === "POST") {
     const body = await readBody(req);
-    const admin = findUser(db, body.adminLoginId);
+    const admin = requireAdmin(req, db, body);
     if (!admin || admin.role !== "admin") {
       sendJson(res, 403, { error: "관리자 권한이 필요합니다." });
       return;
@@ -506,9 +624,43 @@ async function handleApi(req, res) {
     return;
   }
 
+  if (route === "/api/yard" && req.method === "GET") {
+    const user = authenticate(req, db, {});
+    if (!user) {
+      sendJson(res, 401, { error: "로그인이 필요합니다." });
+      return;
+    }
+    const yards = readYards();
+    const yard = yards.yards.find(item => item.owner === ownerKey(user) && item.id === "default") || null;
+    sendJson(res, 200, { yard });
+    return;
+  }
+
+  if (route === "/api/yard" && req.method === "POST") {
+    const body = await readBody(req);
+    const user = authenticate(req, db, body);
+    if (!user) {
+      sendJson(res, 401, { error: "로그인이 필요합니다." });
+      return;
+    }
+    let yard;
+    try {
+      yard = normalizeYardPayload(body, user);
+    } catch (error) {
+      sendJson(res, 400, { error: error.message });
+      return;
+    }
+    const yards = readYards();
+    yards.yards = (yards.yards || []).filter(item => !(item.owner === yard.owner && item.id === yard.id));
+    yards.yards.unshift(yard);
+    writeYards(yards);
+    sendJson(res, 200, { ok: true, yard });
+    return;
+  }
+
   if (route === "/api/payment/create" && req.method === "POST") {
     const body = await readBody(req);
-    const user = findUser(db, body.loginId);
+    const user = authenticate(req, db, body);
     const plan = String(body.plan || "").toLowerCase();
     const amount = planPrice(plan);
     if (!user) {
@@ -561,8 +713,22 @@ async function handleApi(req, res) {
       sendJson(res, 404, { error: "결제 계정을 찾을 수 없습니다." });
       return;
     }
+    const sessionUser = authenticate(req, db, body);
+    if (!sessionUser || ownerKey(sessionUser) !== ownerKey(user)) {
+      sendJson(res, 401, { error: "결제 계정 인증이 필요합니다." });
+      return;
+    }
 
-    if (tossSecretKey && body.paymentKey) {
+    if (order.provider === "toss" && (!tossSecretKey || !body.paymentKey)) {
+      sendJson(res, 400, { error: "토스 결제 승인 정보가 필요합니다." });
+      return;
+    }
+    if (Number(body.amount || order.amount) !== order.amount) {
+      sendJson(res, 400, { error: "결제 금액이 주문 금액과 다릅니다." });
+      return;
+    }
+
+    if (order.provider === "toss" && tossSecretKey && body.paymentKey) {
       const auth = Buffer.from(`${tossSecretKey}:`).toString("base64");
       const tossResponse = await fetch("https://api.tosspayments.com/v1/payments/confirm", {
         method: "POST",
@@ -598,6 +764,39 @@ async function handleApi(req, res) {
     return;
   }
 
+  if (route === "/api/payment/webhook" && req.method === "POST") {
+    const body = await readBody(req);
+    if (tossWebhookSecret) {
+      const provided = String(req.headers["x-webhook-secret"] || body.webhookSecret || "");
+      if (provided !== tossWebhookSecret) {
+        sendJson(res, 401, { error: "웹훅 인증에 실패했습니다." });
+        return;
+      }
+    }
+    const orderId = body.orderId || body.order?.orderId || body.data?.orderId;
+    const status = String(body.status || body.eventType || body.data?.status || "").toLowerCase();
+    const payments = readJsonFile(paymentsFile, { orders: [] });
+    const order = payments.orders.find(item => item.orderId === orderId);
+    if (!order) {
+      sendJson(res, 404, { error: "결제 주문을 찾을 수 없습니다." });
+      return;
+    }
+    order.webhooks = order.webhooks || [];
+    order.webhooks.unshift({ receivedAt: new Date().toISOString(), body });
+    if (/cancel|refund|abort|expired|fail/.test(status)) {
+      order.status = "cancelled";
+      const user = findUser(db, order.loginId);
+      if (user && user.role !== "admin") {
+        user.subscriptionStatus = "cancelled";
+        user.plan = "free";
+      }
+      writeDb(db);
+    }
+    writeJsonFile(paymentsFile, payments);
+    sendJson(res, 200, { ok: true });
+    return;
+  }
+
   if (route === "/api/signup" && req.method === "POST") {
     const body = await readBody(req);
     const email = String(body.email || "").trim();
@@ -628,19 +827,22 @@ async function handleApi(req, res) {
       createdAt: new Date().toISOString()
     };
     db.users.push(user);
+    const authToken = createSession(db, user);
     writeDb(db);
-    sendJson(res, 200, { user: publicUser(user) });
+    sendJson(res, 200, { user: publicUser(user), authToken });
     return;
   }
 
   if (route === "/api/login" && req.method === "POST") {
     const body = await readBody(req);
     const user = findUser(db, body.loginId);
-    if (!user || user.passwordHash !== hashPassword(body.password || "")) {
+    if (!user || !verifyPassword(user, body.password || "")) {
       sendJson(res, 401, { error: "로그인 정보가 올바르지 않습니다." });
       return;
     }
-    sendJson(res, 200, { user: publicUser(user) });
+    const authToken = createSession(db, user);
+    writeDb(db);
+    sendJson(res, 200, { user: publicUser(user), authToken });
     return;
   }
 
@@ -648,7 +850,7 @@ async function handleApi(req, res) {
     const body = await readBody(req);
     const user = findUser(db, body.loginId);
     const email = String(body.email || "").trim();
-    if (!user || user.passwordHash !== hashPassword(body.password || "")) {
+    if (!user || !verifyPassword(user, body.password || "")) {
       sendJson(res, 401, { error: "계정 확인에 실패했습니다." });
       return;
     }
@@ -669,7 +871,7 @@ async function handleApi(req, res) {
 
   if (route === "/api/plan" && req.method === "POST") {
     const body = await readBody(req);
-    const user = findUser(db, body.loginId);
+    const user = authenticate(req, db, body);
     if (!user) {
       sendJson(res, 404, { error: "계정을 찾을 수 없습니다." });
       return;
@@ -682,7 +884,7 @@ async function handleApi(req, res) {
 
   if (route === "/api/message" && req.method === "POST") {
     const body = await readBody(req);
-    const user = findUser(db, body.loginId);
+    const user = authenticate(req, db, body);
     const text = String(body.text || "").trim();
     if (!user) {
       sendJson(res, 404, { error: "로그인한 사용자만 메시지를 보낼 수 있습니다." });
@@ -713,7 +915,7 @@ async function handleApi(req, res) {
 
   if (route === "/api/chat/list" && req.method === "POST") {
     const body = await readBody(req);
-    const user = findUser(db, body.loginId);
+    const user = authenticate(req, db, body);
     if (!user) {
       sendJson(res, 404, { error: "로그인이 필요합니다." });
       return;
@@ -730,7 +932,7 @@ async function handleApi(req, res) {
 
   if (route === "/api/chat/send" && req.method === "POST") {
     const body = await readBody(req);
-    const user = findUser(db, body.loginId);
+    const user = authenticate(req, db, body);
     const text = String(body.text || "").trim();
     if (!user) {
       sendJson(res, 404, { error: "로그인이 필요합니다." });
@@ -761,7 +963,7 @@ async function handleApi(req, res) {
 
   if (route === "/api/admin/chat/reply" && req.method === "POST") {
     const body = await readBody(req);
-    const admin = findUser(db, body.adminLoginId);
+    const admin = requireAdmin(req, db, body);
     const message = db.messages.find(item => item.id === body.messageId);
     const text = String(body.text || "").trim();
     if (!admin || admin.role !== "admin") {
@@ -796,7 +998,7 @@ async function handleApi(req, res) {
 
   if (route === "/api/admin/users" && req.method === "POST") {
     const body = await readBody(req);
-    const admin = findUser(db, body.adminLoginId);
+    const admin = requireAdmin(req, db, body);
     if (!admin || admin.role !== "admin") {
       sendJson(res, 403, { error: "관리자 권한이 필요합니다." });
       return;
@@ -809,7 +1011,7 @@ async function handleApi(req, res) {
         plan: user.plan || "free",
         role: user.role || "user",
         createdAt: user.createdAt || "",
-        passwordStoredAs: "sha256 hash"
+        passwordStoredAs: String(user.passwordHash || "").startsWith("$2") ? "bcrypt" : "legacy sha256"
       }))
     });
     return;
@@ -817,7 +1019,7 @@ async function handleApi(req, res) {
 
   if (route === "/api/admin/messages" && req.method === "POST") {
     const body = await readBody(req);
-    const admin = findUser(db, body.adminLoginId);
+    const admin = requireAdmin(req, db, body);
     if (!admin || admin.role !== "admin") {
       sendJson(res, 403, { error: "관리자 권한이 필요합니다." });
       return;
@@ -828,7 +1030,7 @@ async function handleApi(req, res) {
 
   if (route === "/api/admin/reset-password" && req.method === "POST") {
     const body = await readBody(req);
-    const admin = findUser(db, body.adminLoginId);
+    const admin = requireAdmin(req, db, body);
     const user = findUser(db, body.targetLoginId);
     if (!admin || admin.role !== "admin") {
       sendJson(res, 403, { error: "관리자 권한이 필요합니다." });
@@ -851,8 +1053,8 @@ async function handleApi(req, res) {
 
   if (route === "/api/change-password" && req.method === "POST") {
     const body = await readBody(req);
-    const user = findUser(db, body.loginId);
-    if (!user || user.passwordHash !== hashPassword(body.currentPassword || "")) {
+    const user = authenticate(req, db, body);
+    if (!user || !verifyPassword(user, body.currentPassword || "")) {
       sendJson(res, 401, { error: "현재 비밀번호가 올바르지 않습니다." });
       return;
     }
@@ -883,11 +1085,20 @@ async function handleApi(req, res) {
       username: user.username,
       expiresAt: Date.now() + 10 * 60 * 1000
     };
+    let emailResult;
+    try {
+      emailResult = await sendResetEmail(user.email, code, user);
+    } catch (error) {
+      sendJson(res, 502, { error: error.message });
+      return;
+    }
     writeDb(db);
     sendJson(res, 200, {
       email: user.email,
-      devCode: code,
-      message: "실서비스에서는 이 인증번호를 이메일로 발송합니다."
+      devCode: emailResult.sent ? undefined : code,
+      emailSent: emailResult.sent,
+      emailProvider: emailResult.provider,
+      message: emailResult.sent ? "인증번호를 이메일로 발송했습니다." : "개발 모드라 인증번호를 화면에 표시합니다."
     });
     return;
   }
