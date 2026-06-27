@@ -20,7 +20,7 @@ const tossClientKey = process.env.TOSS_CLIENT_KEY || "";
 const tossSecretKey = process.env.TOSS_SECRET_KEY || "";
 const tossWebhookSecret = process.env.TOSS_WEBHOOK_SECRET || "";
 const resendApiKey = process.env.RESEND_API_KEY || "";
-const emailFrom = process.env.EMAIL_FROM || "gardeningatlas <onboarding@resend.dev>";
+const emailFrom = process.env.EMAIL_FROM || "gardeningatlas <noreply@gardeningatlas.com>";
 
 function loadEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return;
@@ -60,7 +60,7 @@ const types = {
 function ensureData() {
   fs.mkdirSync(dataDir, { recursive: true });
   if (!fs.existsSync(usersFile)) {
-    fs.writeFileSync(usersFile, JSON.stringify({ users: [], resetCodes: {}, messages: [], sessions: [] }, null, 2), "utf8");
+    fs.writeFileSync(usersFile, JSON.stringify({ users: [], resetCodes: {}, signupCodes: {}, messages: [], sessions: [] }, null, 2), "utf8");
   }
   if (!fs.existsSync(yardsFile)) {
     fs.writeFileSync(yardsFile, JSON.stringify({ yards: [] }, null, 2), "utf8");
@@ -89,9 +89,9 @@ function ensureData() {
 function readDb() {
   try {
     const parsed = JSON.parse(fs.readFileSync(usersFile, "utf8").replace(/^\uFEFF/, ""));
-    return { users: parsed.users || [], resetCodes: parsed.resetCodes || {}, messages: parsed.messages || [], sessions: parsed.sessions || [] };
+    return { users: parsed.users || [], resetCodes: parsed.resetCodes || {}, signupCodes: parsed.signupCodes || {}, messages: parsed.messages || [], sessions: parsed.sessions || [] };
   } catch {
-    return { users: [], resetCodes: {}, messages: [], sessions: [] };
+    return { users: [], resetCodes: {}, signupCodes: {}, messages: [], sessions: [] };
   }
 }
 
@@ -141,6 +141,7 @@ function publicUser(user) {
     name: user.name || user.username || user.email || "사용자",
     plan: user.role === "admin" ? "max" : (user.plan || "free"),
     role: user.role || "user",
+    emailVerified: Boolean(user.emailVerified || user.role === "admin"),
     subscriptionStatus: user.subscriptionStatus || (user.plan && user.plan !== "free" ? "active" : "free"),
     paidUntil: user.paidUntil || ""
   };
@@ -224,7 +225,7 @@ function normalizeYardPayload(body, user) {
   };
 }
 
-async function sendResetEmail(to, code, user) {
+async function sendEmail({ to, subject, text }) {
   if (!resendApiKey) return { sent: false, provider: "dev" };
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -232,16 +233,27 @@ async function sendResetEmail(to, code, user) {
       Authorization: `Bearer ${resendApiKey}`,
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({
-      from: emailFrom,
-      to,
-      subject: "gardeningatlas 비밀번호 재설정 인증번호",
-      text: `안녕하세요 ${user.name || user.username || ""}님.\n\ngardeningatlas 비밀번호 재설정 인증번호는 ${code} 입니다.\n이 코드는 10분 뒤 만료됩니다.\n\n요청한 적이 없다면 이 메일을 무시하세요.`
-    })
+    body: JSON.stringify({ from: emailFrom, to, subject, text })
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.message || "이메일 발송에 실패했습니다.");
   return { sent: true, provider: "resend", id: payload.id || "" };
+}
+
+async function sendSignupEmail(to, code, name) {
+  return sendEmail({
+    to,
+    subject: "gardeningatlas 회원가입 인증번호",
+    text: `안녕하세요 ${name || ""}님.\n\ngardeningatlas 회원가입 인증번호는 ${code} 입니다.\n이 코드는 10분 뒤 만료됩니다.\n\n요청한 적이 없다면 이 메일을 무시하세요.`
+  });
+}
+
+async function sendResetEmail(to, code, user) {
+  return sendEmail({
+    to,
+    subject: "gardeningatlas 비밀번호 재설정 인증번호",
+    text: `안녕하세요 ${user.name || user.username || ""}님.\n\ngardeningatlas 비밀번호 재설정 인증번호는 ${code} 입니다.\n이 코드는 10분 뒤 만료됩니다.\n\n요청한 적이 없다면 이 메일을 무시하세요.`
+  });
 }
 
 function isAdminMessage(db, message) {
@@ -522,6 +534,7 @@ async function handleApi(req, res) {
       ok: true,
       users: db.users.length,
       resetCodes: Object.keys(db.resetCodes).length,
+      signupCodes: Object.keys(db.signupCodes || {}).length,
       messages: db.messages.length,
       yards: readYards().yards.length,
       payments: readJsonFile(paymentsFile, { orders: [] }).orders.length,
@@ -797,39 +810,91 @@ async function handleApi(req, res) {
     return;
   }
 
-  if (route === "/api/signup" && req.method === "POST") {
+  if (route === "/api/signup/request" && req.method === "POST") {
     const body = await readBody(req);
-    const email = String(body.email || "").trim();
+    const email = String(body.email || "").trim().toLowerCase();
     const username = String(body.username || "").trim();
     const password = String(body.password || "");
     const name = String(body.name || username || email).trim();
 
-    if (!username || !password) {
-      sendJson(res, 400, { error: "아이디와 비밀번호가 필요합니다." });
+    if (!email || !username || !password) {
+      sendJson(res, 400, { error: "이메일, 아이디, 비밀번호가 필요합니다." });
       return;
     }
-    if (email && !email.includes("@")) {
+    if (!email.includes("@")) {
       sendJson(res, 400, { error: "이메일 형식이 올바르지 않습니다." });
       return;
     }
-    if (findUser(db, username) || (email && findUser(db, email))) {
+    if (findUser(db, username) || findUser(db, email)) {
+      sendJson(res, 409, { error: "이미 존재하는 이메일 또는 아이디입니다." });
+      return;
+    }
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    db.signupCodes = db.signupCodes || {};
+    db.signupCodes[email] = {
+      code,
+      email,
+      username,
+      passwordHash: hashPassword(password),
+      name,
+      expiresAt: Date.now() + 10 * 60 * 1000
+    };
+
+    let emailResult;
+    try {
+      emailResult = await sendSignupEmail(email, code, name || username);
+    } catch (error) {
+      sendJson(res, 502, { error: error.message });
+      return;
+    }
+    writeDb(db);
+    sendJson(res, 200, {
+      email,
+      devCode: emailResult.sent ? undefined : code,
+      emailSent: emailResult.sent,
+      emailProvider: emailResult.provider,
+      message: emailResult.sent ? "인증번호를 이메일로 발송했습니다." : "개발 모드라 인증번호를 화면에 표시합니다."
+    });
+    return;
+  }
+
+  if (route === "/api/signup/confirm" && req.method === "POST") {
+    const body = await readBody(req);
+    const email = String(body.email || "").trim().toLowerCase();
+    const pending = db.signupCodes?.[email];
+    if (!pending || pending.code !== String(body.code || "").trim() || pending.expiresAt < Date.now()) {
+      sendJson(res, 400, { error: "인증번호가 올바르지 않거나 만료되었습니다." });
+      return;
+    }
+    if (findUser(db, pending.username) || findUser(db, pending.email)) {
+      delete db.signupCodes[email];
+      writeDb(db);
       sendJson(res, 409, { error: "이미 존재하는 이메일 또는 아이디입니다." });
       return;
     }
 
     const user = {
-      email,
-      username,
-      passwordHash: hashPassword(password),
-      name,
+      email: pending.email,
+      username: pending.username,
+      passwordHash: pending.passwordHash,
+      name: pending.name,
       plan: "free",
       role: "user",
+      emailVerified: true,
+      emailVerifiedAt: new Date().toISOString(),
       createdAt: new Date().toISOString()
     };
     db.users.push(user);
+    delete db.signupCodes[email];
     const authToken = createSession(db, user);
     writeDb(db);
     sendJson(res, 200, { user: publicUser(user), authToken });
+    return;
+  }
+
+  if (route === "/api/signup" && req.method === "POST") {
+    sendJson(res, 400, { error: "이메일 인증이 필요합니다. 먼저 인증번호를 요청하세요." });
     return;
   }
 
