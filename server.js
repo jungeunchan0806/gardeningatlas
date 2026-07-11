@@ -445,29 +445,35 @@ function fallbackPhotoKeyword(query, part) {
   return latinFirstWord || "plant";
 }
 
-function loremFlickrImageUrl(query, seed, part) {
-  const keyword = fallbackPhotoKeyword(query, part);
-  const fruitKeywords = new Set([
-    "raspberry", "blueberry", "strawberry", "apple", "pear", "peach",
-    "citrus", "tomato", "pepper", "cucumber"
-  ]);
-  const partKeyword = {
-    plant: "plant",
-    leaf: "leaf",
-    flower: "flower",
-    seed: "fruit"
-  }[part] || "plant";
-  const photoPart = part === "plant" && fruitKeywords.has(keyword) ? "fruit" : partKeyword;
-  const lock = Math.abs(Number(seed) || 1) % 100000;
-  return `https://loremflickr.com/700/525/${encodeURIComponent(`${keyword},${photoPart}`)}?lock=${lock}`;
+function partPhotoWords(part) {
+  return {
+    plant: ["plant", "tree", "shrub", "habitus"],
+    leaf: ["leaf", "leaves", "foliage"],
+    flower: ["flower", "flowers", "bloom", "inflorescence"],
+    seed: ["seed", "seeds", "fruit", "fruits", "berry", "berries", "cone", "cones", "pod"]
+  }[part] || ["plant"];
 }
 
-async function findCommonsImage(query, seed) {
+function commonsSearchQuery(core, name, part) {
+  const normalizedCore = normalizePlantSearch(core);
+  const normalizedName = normalizePlantSearch(name);
+  const partWords = partPhotoWords(part);
+  const primaryPart = partWords[0];
+  const terms = [
+    normalizedCore && `${normalizedCore} ${primaryPart}`,
+    normalizedCore && `${normalizedCore} ${partWords.slice(0, 3).join(" OR ")}`,
+    normalizedCore,
+    normalizedName && `${normalizedName} ${primaryPart}`,
+    normalizedName && `${fallbackPhotoKeyword(normalizedName, part)} ${primaryPart}`
+  ].filter(Boolean);
+  return [...new Set(terms)];
+}
+
+async function findCommonsImage(query, seed, part = "plant") {
   const cache = readJsonFile(plantImageFile, { images: {} });
-  const key = `v12|${query}|${seed}`.toLowerCase();
+  const key = `v15|${query}|${part}|${seed}`.toLowerCase();
   const cached = cache.images[key];
   if (cached && cached.url) return cached.url;
-  if (process.env.USE_WIKIMEDIA_LIVE !== "1") throw new Error("live Wikimedia search disabled");
 
   const endpoint = new URL("https://commons.wikimedia.org/w/api.php");
   endpoint.searchParams.set("action", "query");
@@ -484,8 +490,9 @@ async function findCommonsImage(query, seed) {
   const response = await fetch(endpoint, { headers: { "User-Agent": "gardeningatlasPrototype/1.0" } });
   if (!response.ok) throw new Error("image search failed");
   const payload = await response.json();
-  const blockedTitleWords = /(catalogue|catalog|plate|herbarium|specimen|illustration|drawing|scan|book|flora|botanical register|iconograph|stamp|map|diagram|juku|street|city|temple|shrine|landscape)/i;
+  const blockedTitleWords = /(catalogue|catalog|plate|herbarium|specimen|illustration|drawing|scan|book|flora|botanical register|iconograph|stamp|map|diagram|street|road|city|temple|shrine|landscape|building|house|park|garden view|avenue|monument|people|person|portrait|sign|logo|seedling tray|nursery row|bonsai display)/i;
   const queryTokens = normalizePlantSearch(query).toLowerCase().split(/\s+/).filter(token => token.length > 3);
+  const partWords = partPhotoWords(part);
   const pages = Object.values(payload.query?.pages || {})
     .map(page => ({ title: page.title || "", info: page.imageinfo?.[0] }))
     .filter(page => !blockedTitleWords.test(page.title))
@@ -502,15 +509,20 @@ async function findCommonsImage(query, seed) {
     .map(page => {
       const info = page.info;
       const haystack = `${page.title} ${decodeURIComponent(info.thumburl || info.url || "")}`.toLowerCase();
-      const score = queryTokens.reduce((sum, token) => sum + (haystack.includes(token) ? 3 : 0), 0);
+      const tokenScore = queryTokens.reduce((sum, token) => sum + (haystack.includes(token) ? 6 : 0), 0);
+      const partScore = partWords.reduce((sum, token) => sum + (haystack.includes(token) ? 5 : 0), 0);
+      const closeupScore = /(close|closeup|close-up|macro|detail|foliage|flower|fruit|leaf|leaves|seed|cone)/i.test(haystack) ? 4 : 0;
+      const penalty = /(habitat|forest|park|garden|arboretum|street|building|landscape)/i.test(haystack) ? 5 : 0;
+      const score = tokenScore + partScore + closeupScore - penalty;
       return { info, score };
     })
+    .filter(page => page.score > 0)
     .sort((a, b) => b.score - a.score)
     .map(page => page.info);
   if (!pages.length) throw new Error("image not found");
 
-  const topPages = pages.slice(0, Math.min(5, pages.length));
-  const picked = topPages[Math.abs(Number(seed) || 0) % topPages.length];
+  const topPages = pages.slice(0, Math.min(3, pages.length));
+  const picked = topPages[0];
   const url = picked.thumburl || picked.url;
   cache.images[key] = { url, query, seed, source: "Wikimedia Commons", cachedAt: new Date().toISOString() };
   writeJsonFile(plantImageFile, cache);
@@ -639,23 +651,13 @@ async function handleApi(req, res) {
       }
       return;
     }
-    if (process.env.USE_WIKIMEDIA_LIVE !== "1" || process.env.ALLOW_EXTERNAL_PLANT_PHOTOS !== "1") {
-      sendPlantIllustration(res, { name, latin, type, part });
-      return;
-    }
     const core = latin || name;
-    const terms = partSearchTerms(part);
-    const queries = [
-      ...terms.map(term => `${core} ${term}`),
-      core,
-      `${name} ${terms[0]}`,
-      `${name} plant`
-    ].filter(Boolean);
+    const queries = commonsSearchQuery(core, name, part);
     try {
       let imageUrl = "";
       for (const query of queries) {
         try {
-          imageUrl = await findCommonsImage(query, seed);
+          imageUrl = await findCommonsImage(query, seed, part);
           break;
         } catch {
           imageUrl = "";
