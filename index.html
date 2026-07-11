@@ -1052,11 +1052,12 @@
 
     .guide-video {
       width: 100%;
-      aspect-ratio: 16 / 9;
+      aspect-ratio: 16 / 9.6;
       display: block;
       border-radius: 8px;
       border: 1px solid var(--line);
       background: #17201b;
+      object-fit: contain;
     }
 
     .guide-checklist {
@@ -1536,7 +1537,7 @@
           </div>
           <div class="panel-body guide-layout">
             <video class="guide-video" controls preload="metadata" poster="yardatlas-icon.svg">
-              <source src="assets/admin-upload-guide.webm?v=27" type="video/webm">
+              <source src="assets/admin-upload-guide.webm?v=28" type="video/webm">
             </video>
             <div class="guide-checklist">
               <div class="detail"><h3>도면 준비</h3><p>마당을 위에서 본 사진, 지도 캡처, 손그림 도면을 JPG 또는 PNG로 준비합니다.</p></div>
@@ -1811,7 +1812,7 @@
     const sunOptions = ["양지", "반양지", "음지"];
     const waterOptions = ["주 1회 깊게", "주 2회 적당히", "흙이 마르면", "여름에는 2~3일 간격", "건조하게 관리"];
     const soilOptions = ["배수 좋은 흙", "보습력 있는 흙", "약산성 토양", "모래 섞인 흙", "일반 정원토"];
-    const PHOTO_VERSION = "v31";
+    const PHOTO_VERSION = "v32";
 
     function makeCatalog() {
       const list = [];

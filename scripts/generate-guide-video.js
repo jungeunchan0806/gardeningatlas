@@ -141,12 +141,12 @@ async function main() {
         text("물주기 · 계절 관리 자동 생성", 838, 224, 18, 700, "#66736b");
       }
 
-      fillRound(320, 500, 850, 156, 8, "rgba(251,252,247,.96)");
-      fillRound(350, 528, 14, 86, 7, slide.accent);
-      text(slide.title, 390, 560, 38, 900);
-      slide.lines.forEach((line, i) => text(line, 390, 604 + i * 34, 24, 700, "#415047"));
-      fillRound(350, 632, 760, 10, 5, "#d8dfd8");
-      fillRound(350, 632, 760 * ((slideIndex + 1) / slides.length), 10, 5, slide.accent);
+      fillRound(320, 488, 850, 178, 8, "rgba(251,252,247,.96)");
+      fillRound(350, 520, 14, 96, 7, slide.accent);
+      text(slide.title, 390, 550, 34, 900);
+      slide.lines.forEach((line, i) => text(line, 390, 594 + i * 30, 21, 700, "#415047"));
+      fillRound(350, 642, 760, 10, 5, "#d8dfd8");
+      fillRound(350, 642, 760 * ((slideIndex + 1) / slides.length), 10, 5, slide.accent);
     }
 
     drawScreen(slides[0], 0);

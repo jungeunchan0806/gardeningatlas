@@ -390,17 +390,17 @@ function normalizePlantSearch(text) {
   return String(text || "")
     .replace(/'[^']*'/g, "")
     .replace(/\b(var\.|cv\.|cultivar)\b/gi, "")
+    .replace(/\b(subsp\.|ssp\.|f\.)\b/gi, "")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function partSearchTerms(part) {
-  return {
-    plant: ["plant", "habitus", "whole plant"],
-    leaf: ["leaf", "foliage", "plant"],
-    flower: ["flower", "blossom", "inflorescence"],
-    seed: ["cone", "fruit", "seed"]
-  }[part] || ["plant"];
+function cleanLatinForPhoto(latin) {
+  return normalizePlantSearch(latin)
+    .replace(/\bsp\.\b/gi, "")
+    .replace(/\b(White|Pink|Red|Yellow|Purple|Double|Fragrant|Silver|Golden|Dwarf|Upright|Weeping|Compact|Leaf|Flower|Group)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function fallbackPhotoKeyword(query, part) {
@@ -447,22 +447,33 @@ function fallbackPhotoKeyword(query, part) {
 
 function partPhotoWords(part) {
   return {
-    plant: ["plant", "tree", "shrub", "habitus"],
-    leaf: ["leaf", "leaves", "foliage"],
-    flower: ["flower", "flowers", "bloom", "inflorescence"],
-    seed: ["seed", "seeds", "fruit", "fruits", "berry", "berries", "cone", "cones", "pod"]
+    plant: ["plant", "tree", "shrub", "habitus", "whole plant"],
+    leaf: ["leaf", "leaves", "foliage", "closeup"],
+    flower: ["flower", "flowers", "bloom", "inflorescence", "closeup"],
+    seed: ["seed", "seeds", "fruit", "fruits", "samara", "berry", "berries", "cone", "cones", "pod"]
   }[part] || ["plant"];
 }
 
 function commonsSearchQuery(core, name, part) {
-  const normalizedCore = normalizePlantSearch(core);
+  const normalizedCore = cleanLatinForPhoto(core);
   const normalizedName = normalizePlantSearch(name);
+  const genus = normalizedCore.match(/^[A-Za-z][A-Za-z-]+/)?.[0] || "";
+  const species = normalizedCore.split(/\s+/).slice(0, 2).join(" ");
   const partWords = partPhotoWords(part);
   const primaryPart = partWords[0];
   const terms = [
-    normalizedCore && `${normalizedCore} ${primaryPart}`,
-    normalizedCore && `${normalizedCore} ${partWords.slice(0, 3).join(" OR ")}`,
-    normalizedCore,
+    species && `${species} ${primaryPart}`,
+    species && `${species} ${partWords[1] || primaryPart}`,
+    species && part === "seed" && `${species} fruit`,
+    species && part === "seed" && `${species} samara`,
+    normalizedCore && normalizedCore !== species && `${normalizedCore} ${primaryPart}`,
+    genus && genus !== species && `${genus} ${primaryPart}`,
+    genus && genus !== species && part === "flower" && `${genus} flower`,
+    genus && genus !== species && part === "leaf" && `${genus} leaf`,
+    genus && genus !== species && part === "seed" && `${genus} seed`,
+    part !== "plant" && species && `${species} plant`,
+    part !== "plant" && genus && genus !== species && `${genus} plant`,
+    species || normalizedCore,
     normalizedName && `${normalizedName} ${primaryPart}`,
     normalizedName && `${fallbackPhotoKeyword(normalizedName, part)} ${primaryPart}`
   ].filter(Boolean);
@@ -471,7 +482,7 @@ function commonsSearchQuery(core, name, part) {
 
 async function findCommonsImage(query, seed, part = "plant") {
   const cache = readJsonFile(plantImageFile, { images: {} });
-  const key = `v15|${query}|${part}|${seed}`.toLowerCase();
+  const key = `v20|${query}|${part}|${seed}`.toLowerCase();
   const cached = cache.images[key];
   if (cached && cached.url) return cached.url;
 
@@ -482,7 +493,7 @@ async function findCommonsImage(query, seed, part = "plant") {
   endpoint.searchParams.set("gsrnamespace", "6");
   endpoint.searchParams.set("gsrlimit", "20");
   endpoint.searchParams.set("prop", "imageinfo");
-  endpoint.searchParams.set("iiprop", "url|mime");
+  endpoint.searchParams.set("iiprop", "url|mime|size");
   endpoint.searchParams.set("iiurlwidth", "700");
   endpoint.searchParams.set("format", "json");
   endpoint.searchParams.set("origin", "*");
@@ -490,9 +501,11 @@ async function findCommonsImage(query, seed, part = "plant") {
   const response = await fetch(endpoint, { headers: { "User-Agent": "gardeningatlasPrototype/1.0" } });
   if (!response.ok) throw new Error("image search failed");
   const payload = await response.json();
-  const blockedTitleWords = /(catalogue|catalog|plate|herbarium|specimen|illustration|drawing|scan|book|flora|botanical register|iconograph|stamp|map|diagram|street|road|city|temple|shrine|landscape|building|house|park|garden view|avenue|monument|people|person|portrait|sign|logo|seedling tray|nursery row|bonsai display)/i;
+  const blockedTitleWords = /(catalogue|catalog|plate|herbarium|specimen|illustration|drawing|scan|book|flora|botanical register|iconograph|stamp|map|diagram|street|road|city|temple|shrine|landscape|building|house|avenue|monument|people|person|portrait|sign|logo|seedling tray|nursery row|bonsai display|pdf|\.svg)/i;
   const queryTokens = normalizePlantSearch(query).toLowerCase().split(/\s+/).filter(token => token.length > 3);
   const partWords = partPhotoWords(part);
+  const genericTokens = new Set([...partWords, "plant", "tree", "shrub", "whole", "habitus", "closeup", "close-up", "macro"]);
+  const identityTokens = queryTokens.filter(token => !genericTokens.has(token));
   const pages = Object.values(payload.query?.pages || {})
     .map(page => ({ title: page.title || "", info: page.imageinfo?.[0] }))
     .filter(page => !blockedTitleWords.test(page.title))
@@ -509,11 +522,15 @@ async function findCommonsImage(query, seed, part = "plant") {
     .map(page => {
       const info = page.info;
       const haystack = `${page.title} ${decodeURIComponent(info.thumburl || info.url || "")}`.toLowerCase();
+      const identityScore = identityTokens.reduce((sum, token) => sum + (haystack.includes(token) ? 1 : 0), 0);
+      if (identityTokens.length && identityScore === 0) return { info, score: -100 };
       const tokenScore = queryTokens.reduce((sum, token) => sum + (haystack.includes(token) ? 6 : 0), 0);
       const partScore = partWords.reduce((sum, token) => sum + (haystack.includes(token) ? 5 : 0), 0);
       const closeupScore = /(close|closeup|close-up|macro|detail|foliage|flower|fruit|leaf|leaves|seed|cone)/i.test(haystack) ? 4 : 0;
-      const penalty = /(habitat|forest|park|garden|arboretum|street|building|landscape)/i.test(haystack) ? 5 : 0;
-      const score = tokenScore + partScore + closeupScore - penalty;
+      const sizeScore = Math.min(4, Math.round(((info.width || 0) * (info.height || 0)) / 500000));
+      const plantPenalty = part === "plant" && /(bark|trunk|leaf|flower|fruit|seed|cone|closeup|close-up|macro)/i.test(haystack) ? 4 : 0;
+      const contextPenalty = /(habitat|forest|street|building|landscape)/i.test(haystack) ? 5 : 0;
+      const score = tokenScore + partScore + closeupScore + sizeScore - plantPenalty - contextPenalty;
       return { info, score };
     })
     .filter(page => page.score > 0)
@@ -530,15 +547,12 @@ async function findCommonsImage(query, seed, part = "plant") {
 }
 
 function wikipediaTitleCandidates(name, latin, part) {
-  const cleanLatin = normalizePlantSearch(latin)
-    .replace(/\bsp\.\b/gi, "")
-    .replace(/\b(White|Pink|Red|Yellow|Purple|Double|Fragrant|Silver|Golden|Dwarf|Upright|Weeping|Compact|Leaf|Flower|Group)\b/gi, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  const cleanLatin = cleanLatinForPhoto(latin);
   const latinWords = cleanLatin.split(/\s+/).filter(Boolean);
   const latinTitle = latinWords.length >= 2 ? `${latinWords[0]} ${latinWords[1]}` : latinWords[0] || "";
+  const genusTitle = latinWords[0] || "";
   const fallback = fallbackPhotoKeyword(`${name} ${latin}`, part);
-  return [latinTitle, cleanLatin, fallback, name].filter(Boolean).map(item => item.replace(/\s+/g, "_"));
+  return [latinTitle, cleanLatin, genusTitle, fallback, name].filter(Boolean).map(item => item.replace(/\s+/g, "_"));
 }
 
 async function findWikipediaLeadImage(name, latin, part, seed) {
@@ -573,6 +587,14 @@ function redirectExternalImage(res, imageUrl) {
     "Cache-Control": "public, max-age=604800"
   });
   res.end();
+}
+
+function realPhotoFallbackUrl(part, type) {
+  if (part === "leaf") return "https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Hedera_helix_Leaf_Closeup_2084px.jpg/960px-Hedera_helix_Leaf_Closeup_2084px.jpg";
+  if (part === "flower") return "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Rosa_canina_closeup.jpg/960px-Rosa_canina_closeup.jpg";
+  if (part === "seed") return "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/Acer_seed.jpg/960px-Acer_seed.jpg";
+  if (type === "vegetable" || type === "crop") return "https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Marketvegetables.jpg/960px-Marketvegetables.jpg";
+  return "https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Tree_in_field_001.jpg/960px-Tree_in_field_001.jpg";
 }
 
 async function proxyImage(res, imageUrl) {
@@ -693,7 +715,7 @@ async function handleApi(req, res) {
       try {
         sendDataUrlImage(res, override.dataUrl);
       } catch {
-        sendPlantIllustration(res, { name, latin, type, part }, "no-store");
+        redirectExternalImage(res, realPhotoFallbackUrl(part, type));
       }
       return;
     }
@@ -727,13 +749,30 @@ async function handleApi(req, res) {
           imageUrl = "";
         }
       }
+      if (!imageUrl && part !== "plant") {
+        try {
+          imageUrl = await findWikipediaLeadImage(name, latin, "plant", seed);
+        } catch {
+          imageUrl = "";
+        }
+      }
+      if (!imageUrl && part !== "plant") {
+        for (const query of commonsSearchQuery(core, name, "plant")) {
+          try {
+            imageUrl = await findCommonsImage(query, seed, "plant");
+            break;
+          } catch {
+            imageUrl = "";
+          }
+        }
+      }
       if (imageUrl) {
         redirectExternalImage(res, imageUrl);
         return;
       }
-      sendPlantIllustration(res, { name, latin, type, part });
+      redirectExternalImage(res, realPhotoFallbackUrl(part, type));
     } catch {
-      sendPlantIllustration(res, { name, latin, type, part }, "no-store");
+      redirectExternalImage(res, realPhotoFallbackUrl(part, type));
     }
     return;
   }
