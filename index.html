@@ -1354,7 +1354,7 @@
           </section>
         </div>
 
-        <div class="grid" style="margin-top:14px;">
+        <div class="grid hidden" id="scanAdminTools" style="margin-top:14px;">
           <section class="panel">
             <div class="panel-head">
               <h2>유저 관리</h2>
@@ -2033,6 +2033,10 @@
 
     function renderIcons() {
       if (window.lucide) {
+        document.querySelectorAll(".icon[data-icon]").forEach(element => {
+          element.setAttribute("data-lucide", element.dataset.icon);
+          element.setAttribute("aria-hidden", "true");
+        });
         window.lucide.createIcons();
       }
     }
@@ -2072,6 +2076,8 @@
       document.getElementById("accountLabel").textContent = state.user ? `${state.user.name || state.user.email} 님` : "로그인하면 마당 지도를 저장할 수 있어요.";
       document.getElementById("logoutBtn").style.visibility = state.user ? "visible" : "hidden";
       document.getElementById("adminNav").classList.toggle("hidden", state.user?.role !== "admin");
+      const scanAdminTools = document.getElementById("scanAdminTools");
+      if (scanAdminTools) scanAdminTools.classList.toggle("hidden", state.user?.role !== "admin");
       const status = document.getElementById("accountStatus");
       if (!status) return;
       status.innerHTML = `
@@ -2324,12 +2330,20 @@
       document.getElementById("chatListTitle").textContent = state.user?.role === "admin" ? "전체 사용자 채팅" : "내 채팅";
       const composer = document.getElementById("chatComposer");
       if (composer) composer.classList.toggle("hidden", state.user?.role === "admin");
+      const result = document.getElementById("chatResult");
+      if (result) {
+        result.textContent = !state.user
+          ? "로그인 후 채팅을 사용할 수 있습니다."
+          : (state.user.role === "admin" ? "관리자는 사용자 문의에 답장할 수 있습니다." : "메시지를 입력한 뒤 보내기를 누르세요.");
+      }
       if (!state.user) {
         root.innerHTML = `<div class="detail"><h3>로그인이 필요합니다</h3><p>계정 메뉴에서 로그인한 뒤 채팅을 사용할 수 있습니다.</p></div>`;
         return;
       }
       if (!state.chatMessages.length) {
-        root.innerHTML = `<div class="detail"><h3>아직 채팅이 없습니다</h3><p>오른쪽 입력창에서 관리자에게 문의를 보내보세요.</p></div>`;
+        root.innerHTML = state.user.role === "admin"
+          ? `<div class="detail"><h3>아직 채팅이 없습니다</h3><p>사용자 문의가 도착하면 여기에 표시됩니다.</p></div>`
+          : `<div class="detail"><h3>아직 채팅이 없습니다</h3><p>오른쪽 입력창에서 관리자에게 문의를 보내보세요.</p></div>`;
         return;
       }
       root.innerHTML = state.chatMessages.map(message => `
@@ -3090,4 +3104,3 @@
   </script>
 </body>
 </html>
-
