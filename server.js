@@ -271,15 +271,84 @@ function addOneMonth(date = new Date()) {
   return next.toISOString();
 }
 
-function fallbackPlantSvg(label) {
-  const safeLabel = String(label || "plant").replace(/[<>&"]/g, "");
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="420" height="300" viewBox="0 0 420 300"><rect width="420" height="300" fill="#e9f1e8"/><path d="M210 238V104" stroke="#4f7d55" stroke-width="14" stroke-linecap="round"/><path d="M204 150c-50-48-106-41-139 3 45 21 94 18 139-3z" fill="#79a86c"/><path d="M216 129c38-54 96-62 139-24-35 32-84 43-139 24z" fill="#6b9d61"/><path d="M214 194c35-36 82-38 113-4-31 22-70 25-113 4z" fill="#8ab87d"/><ellipse cx="210" cy="244" rx="88" ry="18" fill="#d9e6d7"/><text x="210" y="274" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" fill="#35523a">${safeLabel}</text></svg>`;
-  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+function escapeSvgText(value) {
+  return String(value || "plant").replace(/[<>&"]/g, "");
 }
 
-function fallbackPlantSvgMarkup(label) {
-  const encoded = fallbackPlantSvg(label).split(",", 2)[1] || "";
-  return decodeURIComponent(encoded);
+function plantProfile(name, latin, type) {
+  const text = `${name} ${latin}`.toLowerCase();
+  const base = { type: type || "flower", color: "#4f8b56", accent: "#d96f8a", plant: "flower", leaf: "oval", fruit: "seed" };
+  if (/acer|단풍/.test(text)) return { ...base, color: "#d95a3a", accent: "#b94b2b", plant: "tree", leaf: "maple", fruit: "samara" };
+  if (/pinus|소나무|juniperus|cedrus|abies|picea|tsuga|thuja|cupressus|cryptomeria/.test(text)) return { ...base, color: "#2f7d4f", accent: "#8b643c", plant: "conifer", leaf: "needle", fruit: "cone" };
+  if (/miscanthus|pennisetum|carex|festuca|zoysia|grass|억새|사초|잔디|수크령/.test(text) || type === "grass") return { ...base, color: "#8aa15e", accent: "#c9a75b", plant: "grass", leaf: "blade", fruit: "grain" };
+  if (/fern|pteridium|dryopteris|adiantum|matteuccia|고사리|관중/.test(text) || type === "fern") return { ...base, color: "#4e8b55", accent: "#9b6b38", plant: "fern", leaf: "frond", fruit: "spore" };
+  if (/aloe|echeveria|sedum|agave|haworthia|kalanchoe|succulent|알로에|에케베리아|세덤|용설란/.test(text) || type === "succulent") return { ...base, color: "#6fae91", accent: "#e08c65", plant: "rosette", leaf: "succulent", fruit: "capsule" };
+  if (/carrot|daucus|당근/.test(text)) return { ...base, color: "#4f9b62", accent: "#e87522", plant: "vegetable", leaf: "feathery", fruit: "root" };
+  if (/tomato|lycopersicum|토마토/.test(text)) return { ...base, color: "#4d9655", accent: "#d9412e", plant: "vegetable", leaf: "compound", fruit: "tomato" };
+  if (/pepper|capsicum|고추|파프리카/.test(text)) return { ...base, color: "#4c9658", accent: "#d83f2f", plant: "vegetable", leaf: "lance", fruit: "pepper" };
+  if (/cucumber|cucumis|오이|호박|cucurbita/.test(text)) return { ...base, color: "#539a52", accent: "#6ba83f", plant: "vine", leaf: "lobed", fruit: "gourd" };
+  if (/rose|rosa|장미/.test(text)) return { ...base, color: "#4f8b56", accent: "#d64663", plant: "shrub", leaf: "serrated", fruit: "hip" };
+  if (/hydrangea|수국/.test(text)) return { ...base, color: "#508d59", accent: "#7fa8dc", plant: "shrub", leaf: "oval", fruit: "cluster" };
+  if (/lavandula|라벤더/.test(text)) return { ...base, color: "#6f9c71", accent: "#8b6bd6", plant: "herb", leaf: "needle", fruit: "spike" };
+  if (/citrus|귤|레몬|라임|유자/.test(text)) return { ...base, color: "#528c50", accent: "#e6a72d", plant: "tree", leaf: "oval", fruit: "citrus" };
+  if (/malus|사과/.test(text)) return { ...base, color: "#5f965b", accent: "#d74332", plant: "tree", leaf: "oval", fruit: "apple" };
+  if (/vitis|포도/.test(text)) return { ...base, color: "#57915a", accent: "#60439c", plant: "vine", leaf: "lobed", fruit: "grape" };
+  if (type === "tree") return { ...base, plant: "tree", fruit: "berry" };
+  if (type === "shrub") return { ...base, plant: "shrub", fruit: "berry" };
+  if (type === "vine") return { ...base, plant: "vine", leaf: "heart", fruit: "pod" };
+  if (type === "vegetable" || type === "crop") return { ...base, plant: "vegetable", fruit: "seed" };
+  if (type === "aquatic") return { ...base, plant: "aquatic", leaf: "round", fruit: "pod" };
+  if (type === "foliage") return { ...base, plant: "foliage", leaf: "pattern" };
+  return base;
+}
+
+function leafSvg(profile) {
+  const c = profile.color;
+  if (profile.leaf === "maple") return `<path d="M210 54l19 53 44-34-18 57 58 2-52 26 36 42-55-12 6 58-38-44-38 44 6-58-55 12 36-42-52-26 58-2-18-57 44 34z" fill="${c}"/><path d="M210 108v128" stroke="#5d4b2f" stroke-width="8" stroke-linecap="round"/>`;
+  if (profile.leaf === "needle") return `<g stroke="${c}" stroke-width="10" stroke-linecap="round"><path d="M210 54c-18 58-44 106-86 148"/><path d="M210 54c8 64 6 122-4 178"/><path d="M210 54c32 58 66 104 112 146"/><path d="M210 54c-45 42-86 74-128 100"/><path d="M210 54c44 38 84 70 128 94"/></g>`;
+  if (profile.leaf === "blade") return `<g stroke="${c}" stroke-width="12" stroke-linecap="round"><path d="M112 250c28-102 56-158 94-202"/><path d="M190 254c8-112 24-172 50-216"/><path d="M270 254c-12-104-6-166 24-208"/><path d="M344 250c-34-92-46-152-30-204"/></g>`;
+  if (profile.leaf === "frond") return `<path d="M86 250c70-126 128-176 252-202" stroke="${c}" stroke-width="8" fill="none"/><g stroke="${c}" stroke-width="6" stroke-linecap="round">${Array.from({ length: 9 }, (_, i) => `<path d="M${116 + i * 23} ${225 - i * 17}c-22-8-40-20-54-35"/><path d="M${116 + i * 23} ${225 - i * 17}c24-16 46-26 70-30"/>`).join("")}</g>`;
+  if (profile.leaf === "succulent") return `<g fill="${c}">${Array.from({ length: 12 }, (_, i) => `<ellipse cx="210" cy="150" rx="35" ry="88" transform="rotate(${i * 30} 210 150)" opacity=".82"/>`).join("")}</g><circle cx="210" cy="150" r="34" fill="#8fc3a8"/>`;
+  if (profile.leaf === "round") return `<circle cx="210" cy="145" r="96" fill="${c}"/><path d="M210 145L286 82" stroke="#e9f1e8" stroke-width="8" stroke-linecap="round"/>`;
+  return `<path d="M205 82c-72-44-126 4-144 70 68 24 121 10 144-70z" fill="${c}"/><path d="M215 78c76-38 128 14 138 80-70 18-121 0-138-80z" fill="#6da765"/><path d="M210 116v118" stroke="#557449" stroke-width="10" stroke-linecap="round"/><path d="M208 175c-50-28-87-14-111 36 50 16 86 4 111-36z" fill="#7eb473"/><path d="M218 174c52-24 88-6 108 45-51 12-86-4-108-45z" fill="#85ba79"/>`;
+}
+
+function plantSvg(profile) {
+  const c = profile.color;
+  const a = profile.accent;
+  if (profile.plant === "conifer") return `<path d="M210 58L104 214h212z" fill="${c}"/><path d="M210 104L126 240h168z" fill="#3f7f51"/><rect x="196" y="214" width="28" height="42" rx="8" fill="#8b643c"/>`;
+  if (profile.plant === "tree") return `<rect x="196" y="158" width="28" height="84" rx="9" fill="#80613d"/><circle cx="170" cy="132" r="62" fill="${c}"/><circle cx="238" cy="116" r="76" fill="#6ca763"/><circle cx="270" cy="158" r="58" fill="${c}"/><circle cx="208" cy="170" r="70" fill="#79b46d"/><circle cx="260" cy="120" r="16" fill="${a}" opacity=".85"/>`;
+  if (["grass", "fern", "rosette"].includes(profile.plant)) return leafSvg(profile);
+  if (profile.plant === "vegetable") return `<path d="M210 238V126" stroke="#557449" stroke-width="12" stroke-linecap="round"/><path d="M188 138c-60-46-112-16-132 44 58 24 104 10 132-44z" fill="${c}"/><path d="M232 136c62-42 114-8 128 54-60 18-105 0-128-54z" fill="#6fae68"/><path d="M210 236c32-34 46-70 38-110" stroke="${profile.accent}" stroke-width="16" stroke-linecap="round"/><ellipse cx="210" cy="250" rx="74" ry="16" fill="#d9e6d7"/>`;
+  if (profile.plant === "foliage") return `<rect x="0" y="230" width="420" height="70" fill="#d9e6d7"/><path d="M132 226c-48-84-18-148 67-170 42 77 26 138-67 170z" fill="${c}"/><path d="M262 226c-56-76-36-146 44-178 52 70 44 134-44 178z" fill="#679f67"/><path d="M159 105c22 26 38 58 48 96M289 95c-8 36-14 72-18 110" stroke="${a}" stroke-width="7" stroke-linecap="round" opacity=".85"/>`;
+  if (profile.plant === "vine") return `<path d="M90 226c82-154 222 30 248-150" stroke="${c}" stroke-width="12" fill="none" stroke-linecap="round"/><path d="M126 190c-45-18-54-56-28-89 44 13 56 51 28 89z" fill="#6ea763"/><path d="M220 158c-35-40-21-82 20-100 32 35 20 78-20 100z" fill="${c}"/><circle cx="276" cy="148" r="18" fill="${a}"/>`;
+  if (profile.plant === "aquatic") return `<rect x="0" y="208" width="420" height="92" fill="#cfe2df"/><circle cx="174" cy="176" r="78" fill="${c}"/><path d="M174 176l68-42" stroke="#cfe2df" stroke-width="8"/><circle cx="252" cy="112" r="34" fill="${a}"/><circle cx="276" cy="134" r="26" fill="#efb5c6"/>`;
+  return `<path d="M210 238V134" stroke="#557449" stroke-width="12" stroke-linecap="round"/><path d="M166 190c-40-20-58-54-46-93 44 4 72 34 46 93z" fill="${c}"/><path d="M246 188c43-18 61-52 50-90-45 3-74 31-50 90z" fill="#6fae68"/><g fill="${a}"><circle cx="210" cy="102" r="34"/><circle cx="178" cy="126" r="28"/><circle cx="242" cy="126" r="28"/><circle cx="210" cy="143" r="30"/></g><circle cx="210" cy="124" r="18" fill="#f1cf68"/>`;
+}
+
+function seedSvg(profile) {
+  const a = profile.accent;
+  if (profile.fruit === "cone") return `<path d="M210 62c58 48 74 116 4 190-70-72-56-141-4-190z" fill="${a}"/><g stroke="#6e4a2f" stroke-width="5">${Array.from({ length: 8 }, (_, i) => `<path d="M164 ${102 + i * 18}c30 22 62 22 94 0"/><path d="M176 ${116 + i * 18}c22 16 45 16 68 0"/>`).join("")}</g>`;
+  if (profile.fruit === "samara") return `<path d="M210 148c-68-78-128-76-156-22 55 45 106 48 156 22z" fill="${a}"/><path d="M210 148c72-74 132-68 156-10-58 40-108 39-156 10z" fill="#d9a34d"/><circle cx="210" cy="148" r="12" fill="#6e4a2f"/>`;
+  if (profile.fruit === "tomato") return `<circle cx="190" cy="144" r="50" fill="${a}"/><circle cx="240" cy="158" r="43" fill="#c9362d"/><path d="M186 91l20 24 28-18-13 31" stroke="${profile.color}" stroke-width="8" fill="none" stroke-linecap="round"/>`;
+  if (profile.fruit === "pepper") return `<path d="M208 72c72 40 58 144-15 178-60-58-55-154 15-178z" fill="${a}"/><path d="M210 78c6-30 26-42 54-34" stroke="${profile.color}" stroke-width="10" fill="none" stroke-linecap="round"/>`;
+  if (profile.fruit === "root") return `<path d="M210 64c52 70 28 154-12 204-46-54-66-138 12-204z" fill="${a}"/><g stroke="${profile.color}" stroke-width="8" stroke-linecap="round"><path d="M210 74c-24-30-54-42-92-38"/><path d="M210 74c18-32 48-48 88-50"/></g>`;
+  if (profile.fruit === "grape") return `<g fill="${a}">${Array.from({ length: 14 }, (_, i) => `<circle cx="${170 + (i % 4) * 28 + Math.floor(i / 4) * 8}" cy="${112 + Math.floor(i / 4) * 30}" r="18"/>`).join("")}</g>`;
+  return `<g fill="${a}"><circle cx="164" cy="138" r="26"/><circle cx="210" cy="116" r="30"/><circle cx="254" cy="142" r="25"/><circle cx="204" cy="172" r="28"/></g><path d="M210 86c-2-28 18-44 48-48" stroke="${profile.color}" stroke-width="8" fill="none" stroke-linecap="round"/>`;
+}
+
+function partSvg(profile, part) {
+  if (part === "leaf") return leafSvg(profile);
+  if (part === "seed") return seedSvg(profile);
+  if (part === "flower") return `<g fill="${profile.accent}">${Array.from({ length: 10 }, (_, i) => `<ellipse cx="210" cy="136" rx="30" ry="78" transform="rotate(${i * 36} 210 136)"/>`).join("")}</g><circle cx="210" cy="136" r="28" fill="#f1cf68"/>`;
+  return plantSvg(profile);
+}
+
+function plantIllustrationSvg({ name, latin, type, part }) {
+  const profile = plantProfile(name, latin, type);
+  const safeName = escapeSvgText(name || latin || "plant");
+  const safePart = escapeSvgText({ plant: "전체", leaf: "잎", flower: "꽃", seed: "씨·열매" }[part] || "전체");
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="700" height="525" viewBox="0 0 700 525"><defs><linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#f6faf3"/><stop offset="1" stop-color="#dfeadf"/></linearGradient></defs><rect width="700" height="525" fill="url(#bg)"/><rect x="52" y="38" width="596" height="372" rx="22" fill="#fff" opacity=".88"/><g transform="translate(140 68)">${partSvg(profile, part)}</g><rect x="52" y="428" width="596" height="58" rx="16" fill="#fff" opacity=".92"/><text x="78" y="464" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#17201b">${safeName}</text><text x="620" y="464" text-anchor="end" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#66736b">${safePart}</text></svg>`;
 }
 
 function sendPlantFallback(res, label, cacheControl = "public, max-age=3600") {
@@ -287,7 +356,15 @@ function sendPlantFallback(res, label, cacheControl = "public, max-age=3600") {
     "Content-Type": "image/svg+xml; charset=utf-8",
     "Cache-Control": cacheControl
   });
-  res.end(fallbackPlantSvgMarkup(label));
+  res.end(plantIllustrationSvg({ name: label, latin: "", type: "flower", part: "plant" }));
+}
+
+function sendPlantIllustration(res, details, cacheControl = "public, max-age=604800") {
+  res.writeHead(200, {
+    "Content-Type": "image/svg+xml; charset=utf-8",
+    "Cache-Control": cacheControl
+  });
+  res.end(plantIllustrationSvg(details));
 }
 
 function normalizePhotoKey(name, latin) {
@@ -548,6 +625,7 @@ async function handleApi(req, res) {
     const url = new URL(req.url, publicBaseUrl);
     const latin = normalizePlantSearch(url.searchParams.get("latin") || "");
     const name = url.searchParams.get("name") || "";
+    const type = url.searchParams.get("type") || "";
     const part = url.searchParams.get("part") || "plant";
     const seed = Number(url.searchParams.get("id") || 1);
     const photoDb = readJsonFile(plantImageFile, { images: {}, overrides: {} });
@@ -557,8 +635,12 @@ async function handleApi(req, res) {
       try {
         sendDataUrlImage(res, override.dataUrl);
       } catch {
-        sendPlantFallback(res, part, "no-store");
+        sendPlantIllustration(res, { name, latin, type, part }, "no-store");
       }
+      return;
+    }
+    if (process.env.USE_WIKIMEDIA_LIVE !== "1" || process.env.ALLOW_EXTERNAL_PLANT_PHOTOS !== "1") {
+      sendPlantIllustration(res, { name, latin, type, part });
       return;
     }
     const core = latin || name;
@@ -579,10 +661,13 @@ async function handleApi(req, res) {
           imageUrl = "";
         }
       }
-      if (!imageUrl) imageUrl = loremFlickrImageUrl(core || name || "plant", seed, part);
-      await proxyImage(res, imageUrl);
+      if (imageUrl) {
+        await proxyImage(res, imageUrl);
+        return;
+      }
+      sendPlantIllustration(res, { name, latin, type, part });
     } catch {
-      sendPlantFallback(res, part, "no-store");
+      sendPlantIllustration(res, { name, latin, type, part }, "no-store");
     }
     return;
   }

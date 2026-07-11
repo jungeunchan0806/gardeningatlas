@@ -1524,8 +1524,8 @@
             <p>사진과 도면을 준비해서 앱에 올리는 순서를 영상과 체크리스트로 확인합니다.</p>
           </div>
           <div class="actions">
-            <button class="btn" data-view-shortcut="admin"><span class="icon" data-icon="server-cog"></span>관리자 열기</button>
             <button class="btn" data-view-shortcut="scan"><span class="icon" data-icon="scan-line"></span>도면 올리기</button>
+            <button class="btn" data-view-shortcut="catalog"><span class="icon" data-icon="sprout"></span>식물 도감</button>
           </div>
         </div>
 
@@ -1536,13 +1536,13 @@
           </div>
           <div class="panel-body guide-layout">
             <video class="guide-video" controls preload="metadata" poster="yardatlas-icon.svg">
-              <source src="assets/admin-upload-guide.webm?v=26" type="video/webm">
+              <source src="assets/admin-upload-guide.webm?v=27" type="video/webm">
             </video>
             <div class="guide-checklist">
-              <div class="detail"><h3>사진 준비</h3><p>식물은 전체, 잎, 꽃, 씨·열매 사진을 따로 준비하면 도감 상세 화면이 안정적으로 보입니다.</p></div>
-              <div class="detail"><h3>사진 업로드</h3><p>관리자는 관리자 탭에서 식물을 검색한 뒤 각 사진 칸의 파일 선택으로 업로드합니다. 새 사진은 자동 사진보다 우선 표시됩니다.</p></div>
+              <div class="detail"><h3>도면 준비</h3><p>마당을 위에서 본 사진, 지도 캡처, 손그림 도면을 JPG 또는 PNG로 준비합니다.</p></div>
+              <div class="detail"><h3>식물 도감 확인</h3><p>식물 도감에서 이름을 검색하고 전체, 잎, 꽃, 씨·열매 이미지를 확인합니다.</p></div>
               <div class="detail"><h3>도면 업로드</h3><p>도면 스캔 탭에서 JPG 또는 PNG 도면을 선택하고 스캔을 실행한 뒤 마당 지도에서 위치를 확인합니다.</p></div>
-              <p class="notice">잘못 올린 사진은 같은 칸에 다시 업로드하면 교체됩니다.</p>
+              <p class="notice">도감에서 식물을 고른 뒤 마당 지도에서 위치와 관리 정보를 확인하세요.</p>
             </div>
           </div>
         </section>
@@ -1800,21 +1800,18 @@
       ["Wisteria", "등나무", "vine"], ["Yucca", "유카", "succulent"], ["Zelkova", "느티나무", "tree"]
     ];
 
-    const speciesEpithets = [
-      ["alba", "알바"], ["alpina", "알피나"], ["americana", "아메리카나"], ["angustifolia", "앙구스티폴리아"],
-      ["arborescens", "아르보레센스"], ["aurea", "아우레아"], ["chinensis", "키넨시스"], ["cordata", "코르다타"],
-      ["elegans", "엘레강스"], ["floribunda", "플로리분다"], ["glauca", "글라우카"], ["grandiflora", "그란디플로라"],
-      ["japonica", "야포니카"], ["koreana", "코리아나"], ["lanceolata", "란케올라타"], ["latifolia", "라티폴리아"],
-      ["macrophylla", "마크로필라"], ["nana", "나나"], ["officinalis", "오피키날리스"], ["palustris", "팔루스트리스"],
-      ["paniculata", "파니쿨라타"], ["purpurea", "푸르푸레아"], ["repens", "레펜스"], ["rosea", "로세아"],
-      ["rubra", "루브라"], ["sanguinea", "상귀네아"], ["serrata", "세라타"], ["sibirica", "시비리카"],
-      ["sylvatica", "실바티카"], ["viridis", "비리디스"]
+    const gardenForms = [
+      ["흰꽃", "White Flower Group"], ["분홍꽃", "Pink Flower Group"], ["붉은꽃", "Red Flower Group"],
+      ["노란꽃", "Yellow Flower Group"], ["보라꽃", "Purple Flower Group"], ["겹꽃", "Double Flower Group"],
+      ["향기", "Fragrant Group"], ["은엽", "Silver Leaf Group"], ["황금잎", "Golden Leaf Group"],
+      ["붉은잎", "Red Leaf Group"], ["무늬잎", "Variegated Leaf Group"], ["왜성", "Dwarf Group"],
+      ["직립형", "Upright Group"], ["늘어지는", "Weeping Group"], ["조밀형", "Compact Group"]
     ];
 
     const sunOptions = ["양지", "반양지", "음지"];
     const waterOptions = ["주 1회 깊게", "주 2회 적당히", "흙이 마르면", "여름에는 2~3일 간격", "건조하게 관리"];
     const soilOptions = ["배수 좋은 흙", "보습력 있는 흙", "약산성 토양", "모래 섞인 흙", "일반 정원토"];
-    const PHOTO_VERSION = "v26";
+    const PHOTO_VERSION = "v27";
 
     function makeCatalog() {
       const list = [];
@@ -1822,7 +1819,7 @@
       let id = 1;
 
       function addPlant(name, latin, type) {
-        const key = `${name}|${latin}`.toLowerCase();
+        const key = name.toLowerCase();
         if (seen.has(key) || list.length >= 1000) return;
         seen.add(key);
         const sun = sunOptions[(id + name.length) % sunOptions.length];
@@ -1848,10 +1845,11 @@
       }
 
       essentialPlants.forEach(([name, latin, type]) => addPlant(name, latin, type));
-      for (const [species, speciesName] of speciesEpithets) {
+      generatedGenera.forEach(([genus, korean, type]) => addPlant(korean, `${genus} sp.`, type));
+      for (const [formName, latinGroup] of gardenForms) {
         for (const [genus, korean, type] of generatedGenera) {
           if (list.length >= 1000) break;
-          addPlant(`${korean} ${speciesName}`, `${genus} ${species}`, type);
+          addPlant(`${formName} ${korean}`, `${genus} ${latinGroup}`, type);
         }
         if (list.length >= 1000) break;
       }
@@ -1862,8 +1860,8 @@
       return encodeURIComponent(text);
     }
 
-    function plantPhoto(name, latin, part, lock) {
-      return `/api/plant-photo?name=${encodedQuery(name)}&latin=${encodedQuery(latin)}&part=${encodedQuery(part)}&id=${lock}&v=${PHOTO_VERSION}`;
+    function plantPhoto(name, latin, type, part, lock) {
+      return `/api/plant-photo?name=${encodedQuery(name)}&latin=${encodedQuery(latin)}&type=${encodedQuery(type)}&part=${encodedQuery(part)}&id=${lock}&v=${PHOTO_VERSION}`;
     }
 
     function plantFallback(label) {
@@ -1880,12 +1878,12 @@
 
     function photoSet(name, latin, type, id) {
       const photos = [
-        { label: "전체 사진", url: plantPhoto(name, latin, "plant", id * 31 + 1), fallback: plantFallback("전체 사진") },
-        { label: "잎 사진", url: plantPhoto(name, latin, "leaf", id * 31 + 2), fallback: plantFallback("잎 사진") },
-        { label: "씨/열매 사진", url: plantPhoto(name, latin, "seed", id * 31 + 3), fallback: plantFallback("씨/열매 사진") }
+        { label: "전체 사진", url: plantPhoto(name, latin, type, "plant", id * 31 + 1), fallback: plantFallback("전체 사진") },
+        { label: "잎 사진", url: plantPhoto(name, latin, type, "leaf", id * 31 + 2), fallback: plantFallback("잎 사진") },
+        { label: "씨/열매 사진", url: plantPhoto(name, latin, type, "seed", id * 31 + 3), fallback: plantFallback("씨/열매 사진") }
       ];
       if (canShowFlower(name, latin, type)) {
-        photos.splice(2, 0, { label: "꽃 사진", url: plantPhoto(name, latin, "flower", id * 31 + 4), fallback: plantFallback("꽃 사진") });
+        photos.splice(2, 0, { label: "꽃 사진", url: plantPhoto(name, latin, type, "flower", id * 31 + 4), fallback: plantFallback("꽃 사진") });
       }
       return photos;
     }
@@ -2166,7 +2164,7 @@
         <div class="admin-upload-grid" style="margin-top:10px;">
           ${parts.map(([part, label]) => {
             const hasManual = !!state.photoOverrides[key]?.[part]?.dataUrl;
-            const preview = `/api/plant-photo?name=${encodedQuery(plant.name)}&latin=${encodedQuery(plant.latin)}&part=${part}&id=${plant.id * 31 + 90}&v=${PHOTO_VERSION}-${Date.now()}`;
+            const preview = `/api/plant-photo?name=${encodedQuery(plant.name)}&latin=${encodedQuery(plant.latin)}&type=${encodedQuery(plant.type)}&part=${part}&id=${plant.id * 31 + 90}&v=${PHOTO_VERSION}-${Date.now()}`;
             return `
               <div class="admin-upload-card">
                 <img src="${preview}" data-fallback-src="${plantFallback(label)}" alt="${plant.name} ${label}">
