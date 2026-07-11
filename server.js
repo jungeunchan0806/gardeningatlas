@@ -566,6 +566,15 @@ async function findWikipediaLeadImage(name, latin, part, seed) {
   throw new Error("Wikipedia image not found");
 }
 
+function redirectExternalImage(res, imageUrl) {
+  if (!/^https?:\/\//i.test(imageUrl)) throw new Error("invalid image url");
+  res.writeHead(302, {
+    Location: imageUrl,
+    "Cache-Control": "public, max-age=604800"
+  });
+  res.end();
+}
+
 async function proxyImage(res, imageUrl) {
   const response = await fetch(imageUrl, {
     redirect: "follow",
@@ -692,6 +701,17 @@ async function handleApi(req, res) {
     const queries = commonsSearchQuery(core, name, part);
     try {
       let imageUrl = "";
+      if (part === "plant") {
+        try {
+          imageUrl = await findWikipediaLeadImage(name, latin, part, seed);
+        } catch {
+          imageUrl = "";
+        }
+      }
+      if (imageUrl) {
+        redirectExternalImage(res, imageUrl);
+        return;
+      }
       for (const query of queries) {
         try {
           imageUrl = await findCommonsImage(query, seed, part);
@@ -700,7 +720,7 @@ async function handleApi(req, res) {
           imageUrl = "";
         }
       }
-      if (!imageUrl) {
+      if (!imageUrl && part !== "plant") {
         try {
           imageUrl = await findWikipediaLeadImage(name, latin, part, seed);
         } catch {
@@ -708,7 +728,7 @@ async function handleApi(req, res) {
         }
       }
       if (imageUrl) {
-        await proxyImage(res, imageUrl);
+        redirectExternalImage(res, imageUrl);
         return;
       }
       sendPlantIllustration(res, { name, latin, type, part });
