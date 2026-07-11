@@ -9,6 +9,7 @@ const dataDir = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path
 const usersFile = path.join(dataDir, "users.json");
 const yardsFile = path.join(dataDir, "yards.json");
 const plantImageFile = path.join(dataDir, "plant-images.json");
+const plantPhotoCacheDir = path.join(dataDir, "plant-photo-cache");
 const paymentsFile = path.join(dataDir, "payments.json");
 
 loadEnvFile(path.join(root, ".env"));
@@ -59,6 +60,7 @@ const types = {
 
 function ensureData() {
   fs.mkdirSync(dataDir, { recursive: true });
+  fs.mkdirSync(plantPhotoCacheDir, { recursive: true });
   if (!fs.existsSync(usersFile)) {
     fs.writeFileSync(usersFile, JSON.stringify({ users: [], resetCodes: {}, signupCodes: {}, messages: [], sessions: [] }, null, 2), "utf8");
   }
@@ -580,15 +582,6 @@ async function findWikipediaLeadImage(name, latin, part, seed) {
   throw new Error("Wikipedia image not found");
 }
 
-function redirectExternalImage(res, imageUrl) {
-  if (!/^https?:\/\//i.test(imageUrl)) throw new Error("invalid image url");
-  res.writeHead(302, {
-    Location: imageUrl,
-    "Cache-Control": "public, max-age=604800"
-  });
-  res.end();
-}
-
 function realPhotoFallbackUrl(part, type) {
   if (part === "leaf") return "https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Hedera_helix_Leaf_Closeup_2084px.jpg/960px-Hedera_helix_Leaf_Closeup_2084px.jpg";
   if (part === "flower") return "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Rosa_canina_closeup.jpg/960px-Rosa_canina_closeup.jpg";
@@ -597,19 +590,53 @@ function realPhotoFallbackUrl(part, type) {
   return "https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Tree_in_field_001.jpg/960px-Tree_in_field_001.jpg";
 }
 
-async function proxyImage(res, imageUrl) {
+function extensionFromContentType(contentType, imageUrl) {
+  if (/png/i.test(contentType)) return ".png";
+  if (/webp/i.test(contentType)) return ".webp";
+  if (/jpe?g/i.test(contentType)) return ".jpg";
+  const match = String(imageUrl || "").split("?")[0].match(/\.(png|webp|jpe?g)$/i);
+  return match ? `.${match[1].toLowerCase().replace("jpeg", "jpg")}` : ".jpg";
+}
+
+function sendCachedImageFile(res, filePath, contentType) {
+  const body = fs.readFileSync(filePath);
+  res.writeHead(200, {
+    "Content-Type": contentType,
+    "Cache-Control": "public, max-age=604800",
+    "Content-Length": body.length,
+    "X-Plant-Photo-Cache": "hit"
+  });
+  res.end(body);
+}
+
+async function serveCachedExternalImage(res, imageUrl) {
+  if (!/^https?:\/\//i.test(imageUrl)) throw new Error("invalid image url");
+  fs.mkdirSync(plantPhotoCacheDir, { recursive: true });
+  const hash = crypto.createHash("sha256").update(imageUrl).digest("hex").slice(0, 32);
+  const cachedFile = fs.readdirSync(plantPhotoCacheDir).find(file => file.startsWith(`${hash}.`));
+  if (cachedFile) {
+    const filePath = path.join(plantPhotoCacheDir, cachedFile);
+    const contentType = types[path.extname(filePath).toLowerCase()] || "image/jpeg";
+    sendCachedImageFile(res, filePath, contentType);
+    return;
+  }
   const response = await fetch(imageUrl, {
     redirect: "follow",
     headers: { "User-Agent": "gardeningatlasPrototype/1.0" }
   });
   if (!response.ok) throw new Error("image fetch failed");
   const contentType = response.headers.get("content-type") || "image/jpeg";
-  if (!/^image\//i.test(contentType)) throw new Error("not an image");
+  if (!/^image\//i.test(contentType) || /svg/i.test(contentType)) throw new Error("not a raster image");
   const body = Buffer.from(await response.arrayBuffer());
+  if (body.length > 8_000_000) throw new Error("image too large");
+  const extension = extensionFromContentType(contentType, imageUrl);
+  const filePath = path.join(plantPhotoCacheDir, `${hash}${extension}`);
+  fs.writeFileSync(filePath, body);
   res.writeHead(200, {
     "Content-Type": contentType,
     "Cache-Control": "public, max-age=604800",
-    "Content-Length": body.length
+    "Content-Length": body.length,
+    "X-Plant-Photo-Cache": "miss"
   });
   res.end(body);
 }
@@ -715,7 +742,7 @@ async function handleApi(req, res) {
       try {
         sendDataUrlImage(res, override.dataUrl);
       } catch {
-        redirectExternalImage(res, realPhotoFallbackUrl(part, type));
+        await serveCachedExternalImage(res, realPhotoFallbackUrl(part, type));
       }
       return;
     }
@@ -731,7 +758,7 @@ async function handleApi(req, res) {
         }
       }
       if (imageUrl) {
-        redirectExternalImage(res, imageUrl);
+        await serveCachedExternalImage(res, imageUrl);
         return;
       }
       for (const query of queries) {
@@ -767,12 +794,12 @@ async function handleApi(req, res) {
         }
       }
       if (imageUrl) {
-        redirectExternalImage(res, imageUrl);
+        await serveCachedExternalImage(res, imageUrl);
         return;
       }
-      redirectExternalImage(res, realPhotoFallbackUrl(part, type));
+      await serveCachedExternalImage(res, realPhotoFallbackUrl(part, type));
     } catch {
-      redirectExternalImage(res, realPhotoFallbackUrl(part, type));
+      await serveCachedExternalImage(res, realPhotoFallbackUrl(part, type));
     }
     return;
   }
