@@ -529,6 +529,43 @@ async function findCommonsImage(query, seed, part = "plant") {
   return url;
 }
 
+function wikipediaTitleCandidates(name, latin, part) {
+  const cleanLatin = normalizePlantSearch(latin)
+    .replace(/\bsp\.\b/gi, "")
+    .replace(/\b(White|Pink|Red|Yellow|Purple|Double|Fragrant|Silver|Golden|Dwarf|Upright|Weeping|Compact|Leaf|Flower|Group)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const latinWords = cleanLatin.split(/\s+/).filter(Boolean);
+  const latinTitle = latinWords.length >= 2 ? `${latinWords[0]} ${latinWords[1]}` : latinWords[0] || "";
+  const fallback = fallbackPhotoKeyword(`${name} ${latin}`, part);
+  return [latinTitle, cleanLatin, fallback, name].filter(Boolean).map(item => item.replace(/\s+/g, "_"));
+}
+
+async function findWikipediaLeadImage(name, latin, part, seed) {
+  const cache = readJsonFile(plantImageFile, { images: {} });
+  const titles = wikipediaTitleCandidates(name, latin, part);
+  for (const title of titles) {
+    const key = `wiki-v2|${title}|${part}|${seed}`.toLowerCase();
+    const cached = cache.images[key];
+    if (cached && cached.url) return cached.url;
+    const endpoint = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
+    try {
+      const response = await fetch(endpoint, { headers: { "User-Agent": "gardeningatlasPrototype/1.0" } });
+      if (!response.ok) continue;
+      const payload = await response.json();
+      const url = payload.originalimage?.source || payload.thumbnail?.source || "";
+      const text = `${payload.title || ""} ${payload.description || ""} ${payload.extract || ""}`.toLowerCase();
+      if (!url || !/^https?:\/\//i.test(url) || !/(plant|tree|flower|shrub|species|genus|herb|grass|fern|vegetable|fruit)/i.test(text)) continue;
+      cache.images[key] = { url, query: title, seed, source: "Wikipedia lead image", cachedAt: new Date().toISOString() };
+      writeJsonFile(plantImageFile, cache);
+      return url;
+    } catch {
+      // Try the next title candidate.
+    }
+  }
+  throw new Error("Wikipedia image not found");
+}
+
 async function proxyImage(res, imageUrl) {
   const response = await fetch(imageUrl, {
     redirect: "follow",
@@ -659,6 +696,13 @@ async function handleApi(req, res) {
         try {
           imageUrl = await findCommonsImage(query, seed, part);
           break;
+        } catch {
+          imageUrl = "";
+        }
+      }
+      if (!imageUrl) {
+        try {
+          imageUrl = await findWikipediaLeadImage(name, latin, part, seed);
         } catch {
           imageUrl = "";
         }
